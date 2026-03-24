@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Disroga S.A. de C.V. – Distribuidora de Abarrotes</title>
+  <meta name="description"
+    content="Disroga S.A. de C.V. – Tu distribuidor mayorista de abarrotes de confianza. Conoce nuestro catálogo de productos y ofertas exclusivas." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+
+<body>
+
+  <!-- ── Navbar ──────────────────────────────── -->
+  <header class="navbar" id="navbar">
+    <a href="#" class="navbar__logo">
+      <img src="/img/logo.png" alt="Disroga S.A. de C.V." id="logo-img" />
+    </a>
+    <nav class="navbar__nav" id="nav-menu">
+      <a href="#productos">Productos</a>
+      <a href="#ofertas">Ofertas</a>
+      <a href="#footer">Contacto</a>
+      <a href="#contacto" class="navbar__cta">Solicitar Pedido</a>
+    </nav>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema"><span class="theme-toggle__dot"></span></button>
+    <button class="navbar__hamburger" id="hamburger" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  <!-- ── Hero ────────────────────────────────── -->
+  <section class="hero" id="inicio">
+    <div class="hero__grid">
+      <div class="hero__content">
+        <div class="hero__tag">
+          <span>🌿</span> Distribuidora Mayorista
+        </div>
+        <h1 class="hero__title">
+          Tu proveedor de<br /><em>abarrotes de confianza</em>
+        </h1>
+        <p class="hero__desc">
+          En Disroga te abastecemos con los mejores productos al mejor precio.
+          Más de 500 artículos disponibles para tu negocio.
+        </p>
+        <div class="hero__actions">
+          <button class="btn-primary"
+            onclick="document.getElementById('productos').scrollIntoView({behavior:'smooth'})">
+            Ver Catálogo →
+          </button>
+          <button class="btn-secondary"
+            onclick="document.getElementById('ofertas').scrollIntoView({behavior:'smooth'})">
+            🏷️ Ver Ofertas
+          </button>
+        </div>
+        <div class="hero__stats" id="hero-stats">
+          <div>
+            <div class="hero__stat-value">500+</div>
+            <div class="hero__stat-label">Productos</div>
+          </div>
+          <div>
+            <div class="hero__stat-value">24h</div>
+            <div class="hero__stat-label">Entrega</div>
+          </div>
+          <div>
+            <div class="hero__stat-value">100%</div>
+            <div class="hero__stat-label">Garantizados</div>
+          </div>
+        </div>
+      </div>
+      <div class="hero__visual">
+        <div class="hero__card-stack" id="hero-cards">
+          <!-- Cards renderizadas por JS -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Barra de búsqueda ────────────────────── -->
+  <div class="search-section">
+    <div class="search-box">
+      <span class="search-box__icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Buscar por nombre o código de producto…" autocomplete="off" />
+    </div>
+  </div>
+
+  <!-- ── Productos ─────────────────────────────── -->
+  <section class="section" id="productos">
+    <div class="section__header">
+      <div class="section__eyebrow">Catálogo</div>
+      <h2 class="section__title">Nuestros <span>Productos</span></h2>
+    </div>
+
+
+    <!-- Grid de productos -->
+    <div class="products-grid" id="products-grid">
+      <!-- Skeletons iniciales -->
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+      <div class="skeleton-card">
+        <div class="skeleton sk-img"></div>
+        <div class="sk-body">
+          <div class="skeleton sk-line w-60"></div>
+          <div class="skeleton sk-line w-80"></div>
+          <div class="skeleton sk-price"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Ofertas ─────────────────────────────── -->
+  <section class="ofertas-section" id="ofertas">
+    <div class="ofertas-inner">
+      <div class="section__header">
+        <div class="section__eyebrow">Promociones</div>
+        <h2 class="section__title" style="color:#fff">Ofertas <span style="color:var(--verde-lima)">Exclusivas</span>
+        </h2>
+      </div>
+      <!-- Barra de búsqueda en ofertas -->
+      <div class="ofertas-search">
+        <span class="ofertas-search__icon">🔍</span>
+        <input type="text" id="ofertas-search-input" placeholder="Buscar en ofertas…" autocomplete="off" />
+      </div>
+      <div class="ofertas-grid" id="ofertas-grid">
+        <!-- Renders dinámicos -->
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Footer ──────────────────────────────── -->
+  <footer class="footer" id="footer">
+    <div class="footer__grid">
+      <div class="footer__brand">
+        <img src="/img/logo.png" alt="Disroga" id="footer-logo" />
+        <p class="footer__tagline">
+          Distribuidora mayorista de abarrotes con más de 25 años de experiencia.
+          Calidad, variedad y el mejor precio del mercado.
+        </p>
+      </div>
+      <div>
+        <div class="footer__col-title">Navegación</div>
+        <ul class="footer__links">
+          <li><a href="#inicio">Inicio</a></li>
+          <li><a href="#productos">Catálogo</a></li>
+          <li><a href="#ofertas">Ofertas</a></li>
+          <li><a href="#footer">Contacto</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="footer__col-title">Categorías</div>
+        <ul class="footer__links" id="footer-cats">
+          <li><a href="#productos">Lácteos</a></li>
+          <li><a href="#productos">Bebidas</a></li>
+          <li><a href="#productos">Abarrotes</a></li>
+          <li><a href="#productos">Limpieza</a></li>
+          <li><a href="#productos">Botanas</a></li>
+        </ul>
+      </div>
+      <div id="contacto">
+        <div class="footer__col-title">Contacto</div>
+        <div class="footer__contact-item">
+          <span>📍</span><span>Carretera Nacional Km. 10, Enrique Cárdenas González, 88296 Nuevo Laredo, Tamps.</span>
+        </div>
+        <div class="footer__contact-item">
+          <span>📞</span><span>(867)718 0066</span>
+        </div>
+        <div class="footer__contact-item">
+          <span>✉️</span><span>ventas@disroga.com</span>
+        </div>
+        <div class="footer__contact-item">
+          <span>🕐</span><span>Lun–Vie 8:00–5:40 </span>
+        </div>
+      </div>
+    </div>
+    <hr class="footer__divider" />
+    <div class="footer__bottom">
+      <span class="footer__copy">© 2026 <span>Disroga S.A. de C.V.</span> – Todos los derechos reservados</span>
+      <span class="footer__copy">Diseño moderno. Calidad garantizada.</span>
+    </div>
+  </footer>
+
+  <!-- ── WhatsApp FAB ─────────────────────────── -->
+  <a class="fab-whatsapp" href="https://wa.me/5200000000" target="_blank" rel="noopener"
+    title="Escríbenos por WhatsApp">
+    <div class="fab-pulse"></div>
+    💬
+  </a>
+
+  <script src="/js/main.js"></script>
+</body>
+
+</html>
