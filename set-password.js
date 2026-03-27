@@ -18,7 +18,7 @@ if (password.length < 4) {
 const Database = require('better-sqlite3');
 const db = new Database(path.join(__dirname, 'db', 'disroga.db'));
 
-const cliente = db.prepare('SELECT id, nombre, clave FROM clientes WHERE LOWER(clave) = LOWER(?)').get(clave);
+const cliente = db.prepare('SELECT id, nombre, clave FROM clientes WHERE TRIM(clave) = TRIM(?)').get(clave);
 if (!cliente) {
   console.error(`❌ Cliente con clave "${clave}" no encontrado en la BD.`);
   console.error('   Recuerda sincronizar primero: node db/sync-clientes.js');

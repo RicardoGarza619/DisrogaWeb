@@ -170,6 +170,7 @@ function renderProductos(lista) {
             data-precio="${p.precio}"
             data-img="${p.imagen_url || ''}"
             data-nombre="${p.nombre.replace(/"/g, '&quot;')}"
+            data-exist="${p.existencia || 0}"
             aria-label="Agregar al carrito">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             Agregar
@@ -199,6 +200,7 @@ function renderProductos(lista) {
         precio_unitario: parseFloat(addBtn.dataset.precio),
         imagen_url:      addBtn.dataset.img,
         cantidad:        parseInt(qtyInput.value) || 1,
+        existencia:      parseInt(addBtn.dataset.exist) || 0,
       });
       qtyInput.value = 1; // reset
     });
@@ -256,6 +258,7 @@ function renderOfertas(ofertas) {
           data-precio="${precioOferta}"
           data-img="${o.imagen_url || ''}"
           data-nombre="${(o.nombre_producto || '').replace(/"/g, '&quot;')}"
+          data-exist="${o.existencia || 0}"
           aria-label="Agregar al carrito">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
           Agregar
@@ -285,6 +288,7 @@ function renderOfertas(ofertas) {
         precio_unitario: parseFloat(addBtn.dataset.precio),
         imagen_url:      addBtn.dataset.img,
         cantidad:        parseInt(qtyInput.value) || 1,
+        existencia:      parseInt(addBtn.dataset.exist) || 0,
       });
       qtyInput.value = 1;
     });

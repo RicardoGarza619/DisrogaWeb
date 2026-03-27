@@ -11,7 +11,7 @@ const db = require('./db/init');
 
 // ─── Libs ──────────────────────────────────────────────────
 const { hashPassword, checkPassword, signToken, requireAuth, optionalAuth } = require('./lib/auth');
-const { enviarPedidoVendedor, enviarResetPassword } = require('./lib/mailer');
+const { enviarPedidoVendedor, enviarPedidoCliente, enviarResetPassword } = require('./lib/mailer');
 
 // ─── Mapa CVE_PRODSERV → Categoría SAT (para IVA) ─────────
 const CATS_ALIMENTO = new Set([
@@ -85,7 +85,7 @@ app.post('/api/auth/login', (req, res) => {
   const { clave, password } = req.body;
   if (!clave || !password) return res.status(400).json({ error: 'Clave y contraseña requeridas' });
 
-  const cliente = db.prepare('SELECT * FROM clientes WHERE LOWER(clave)=LOWER(?) AND activo=1').get(clave);
+  const cliente = db.prepare('SELECT * FROM clientes WHERE TRIM(clave)=TRIM(?) AND activo=1').get(clave);
   if (!cliente) return res.status(401).json({ error: 'Cliente no encontrado' });
   if (!cliente.password_hash) return res.status(403).json({ error: 'sin_password', mensaje: 'Debes configurar tu contraseña primero' });
   if (!checkPassword(password, cliente.password_hash)) return res.status(401).json({ error: 'Contraseña incorrecta' });
@@ -100,7 +100,7 @@ app.post('/api/auth/set-password', (req, res) => {
   if (!clave || !email || !password) return res.status(400).json({ error: 'Datos incompletos' });
   if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
 
-  const cliente = db.prepare('SELECT * FROM clientes WHERE LOWER(clave)=LOWER(?) AND activo=1').get(clave);
+  const cliente = db.prepare('SELECT * FROM clientes WHERE TRIM(clave)=TRIM(?) AND activo=1').get(clave);
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
   if (!cliente.email || cliente.email.toLowerCase() !== email.toLowerCase())
     return res.status(403).json({ error: 'El correo no coincide con el registrado' });
@@ -117,7 +117,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Correo requerido' });
 
-  const cliente = db.prepare('SELECT * FROM clientes WHERE LOWER(email)=LOWER(?) AND activo=1').get(email);
+  const cliente = db.prepare('SELECT * FROM clientes WHERE LOWER(email)=LOWER(TRIM(?)) AND activo=1').get(email);
   // Siempre responder ok para no revelar si el email existe
   if (!cliente) return res.json({ ok: true, mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace.' });
 
@@ -375,8 +375,9 @@ app.post('/api/pedidos', optionalAuth, async (req, res) => {
   const pedido = db.prepare('SELECT * FROM pedidos WHERE id=?').get(pedidoId);
   const pedidoItems = db.prepare('SELECT * FROM pedido_items WHERE pedido_id=?').all(pedidoId);
 
-  // Enviar correo al vendedor (sin bloquear la respuesta)
-  enviarPedidoVendedor(pedido, pedidoItems).catch(e => console.error('Email vendedor error:', e.message));
+  // Enviar correos al vendedor y al cliente (sin bloquear la respuesta)
+  enviarPedidoVendedor(pedido, items, !req.cliente).catch(e => console.error('Email vendedor error:', e.message));
+  enviarPedidoCliente(pedido, items, !req.cliente).catch(e => console.error('Email cliente error:', e.message));
 
   res.json({ ok: true, pedido_id: pedidoId, mensaje: '¡Pedido recibido! Nos pondremos en contacto contigo pronto.' });
 });

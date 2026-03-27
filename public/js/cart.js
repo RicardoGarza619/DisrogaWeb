@@ -17,6 +17,7 @@ const Cart = (() => {
     const existing = items.find(i => i.producto_id === producto.producto_id);
     if (existing) {
       existing.cantidad += qty;
+      existing.existencia = parseInt(producto.existencia) || 0; // mantener la existencia más reciente
       existing.subtotal = Math.round(existing.cantidad * existing.precio_unitario * 100) / 100;
     } else {
       items.push({
@@ -24,6 +25,7 @@ const Cart = (() => {
         nombre_producto: producto.nombre_producto || '—',
         precio_unitario: precio,
         cantidad:        qty,
+        existencia:      parseInt(producto.existencia) || 0,
         imagen_url:      producto.imagen_url || '',
         subtotal:        Math.round(qty * precio * 100) / 100,
       });
@@ -125,6 +127,18 @@ const Cart = (() => {
       });
     }
     totalEl.textContent = formatMXN(total());
+
+    const legendsEl = document.getElementById('cart-legends');
+    if (legendsEl) {
+      const cliente = typeof Auth !== 'undefined' ? Auth.getCliente() : null;
+      legendsEl.innerHTML = `
+        <div style="margin-bottom:4px;">* IVA incluido (8%)</div>
+        <div style="margin-bottom:4px; color: ${cliente ? 'var(--verde-oscuro)' : 'inherit'}; font-weight: ${cliente ? '600' : 'normal'}">
+          ${cliente ? '* Descuento de cliente ya aplicado.' : ''}
+        </div>
+        <div>* Sujeto a validación de disponibilidad.</div>
+      `;
+    }
   }
 
   function openDrawer() {
