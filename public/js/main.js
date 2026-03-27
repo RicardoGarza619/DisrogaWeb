@@ -15,9 +15,9 @@ const state = {
 function formatMXN(val) {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(val);
 }
-function withIVA(precio, esAlimento) {
-  if (esAlimento) return Math.round(precio * 100) / 100; // exento de IVA
-  return Math.round(precio * IVA * 100) / 100;
+// El servidor ya calcula el precio correcto (IVA + margen o descuento)
+function withIVA(precio) {
+  return Math.round(precio * 100) / 100;
 }
 function debounce(fn, ms) {
   let timer;
@@ -32,7 +32,10 @@ function shuffle(arr) {
   return a;
 }
 async function fetchJSON(url) {
-  const res = await fetch(url);
+  const token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(url, { headers });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
@@ -88,13 +91,11 @@ function renderHeroCards(productos) {
 let searchMode = false;
 
 async function fetchSearch(termino) {
-  // Busca en el servidor por nombre o CVE_ART
   const enc = encodeURIComponent(termino);
   const [porNombre, porCve] = await Promise.all([
     fetchJSON(`${API}/api/productos?q=${enc}`),
     fetchJSON(`${API}/api/productos?cve=${enc}`),
   ]);
-  // Unir resultados y quitar duplicados
   const map = new Map();
   [...porNombre, ...porCve].forEach(p => map.set(p.id, p));
   return [...map.values()];
@@ -145,9 +146,8 @@ function renderProductos(lista) {
       <div class="product-card__img">
         ${p.imagen_url
           ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
-               onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\ud83d\udce6',style:'font-size:3.5rem'}))" />`
-          : `<span style="font-size:3.5rem">\ud83d\udce6</span>`}
-
+               onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\u{1F4E6}',style:'font-size:3.5rem'}))" />`
+          : `<span style="font-size:3.5rem">\u{1F4E6}</span>`}
       </div>
       <div class="product-card__body">
         <div class="product-card__cve">CVE: ${p.id}</div>
@@ -155,13 +155,54 @@ function renderProductos(lista) {
         <div class="product-card__footer">
           <div class="product-card__price">
             <span class="product-card__price-label">por ${p.unidad || 'pieza'}</span>
-            <span class="product-card__price-value">${formatMXN(withIVA(p.precio, p.es_alimento))}</span>
+            <span class="product-card__price-value">${formatMXN(p.precio)}</span>
           </div>
           <span class="product-card__unit">${p.unidad || 'pieza'}</span>
+        </div>
+        <div class="add-to-cart-row">
+          <div class="card-qty-control">
+            <button class="card-qty-btn" data-action="minus">−</button>
+            <input type="number" class="card-qty-input" value="1" min="1" max="999">
+            <button class="card-qty-btn" data-action="plus">+</button>
+          </div>
+          <button class="btn-add-cart"
+            data-id="${p.id}"
+            data-precio="${p.precio}"
+            data-img="${p.imagen_url || ''}"
+            data-nombre="${p.nombre.replace(/"/g, '&quot;')}"
+            aria-label="Agregar al carrito">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            Agregar
+          </button>
         </div>
       </div>
     </article>
   `).join('');
+
+  // Event delegation para botones de carrito en productos
+  grid.querySelectorAll('.add-to-cart-row').forEach(row => {
+    const qtyInput = row.querySelector('.card-qty-input');
+    const addBtn   = row.querySelector('.btn-add-cart');
+
+    row.querySelectorAll('.card-qty-btn').forEach(qBtn => {
+      qBtn.addEventListener('click', () => {
+        let v = parseInt(qtyInput.value) || 1;
+        v = qBtn.dataset.action === 'plus' ? v + 1 : Math.max(1, v - 1);
+        qtyInput.value = v;
+      });
+    });
+
+    addBtn.addEventListener('click', () => {
+      Cart.add({
+        producto_id:     addBtn.dataset.id,
+        nombre_producto: addBtn.dataset.nombre,
+        precio_unitario: parseFloat(addBtn.dataset.precio),
+        imagen_url:      addBtn.dataset.img,
+        cantidad:        parseInt(qtyInput.value) || 1,
+      });
+      qtyInput.value = 1; // reset
+    });
+  });
 }
 
 // ─── Ofertas ─────────────────────────────────
@@ -178,25 +219,76 @@ function renderOfertas(ofertas) {
     grid.innerHTML = `<p style="color:rgba(255,255,255,0.5);padding:20px">Sin ofertas vigentes en este momento.</p>`;
     return;
   }
-  grid.innerHTML = ofertas.map(o => `
+  grid.innerHTML = ofertas.map(o => {
+    // Precio de oferta con fallback por si el servidor no lo calcula
+    const pOrig  = parseFloat(o.precio_original) || 0;
+    const pOfer  = parseFloat(o.precio_oferta) || 0;
+    const pct    = parseFloat(o.descuento_pct)  || 0;
+    const precioOferta = (pOfer > 0 && pOfer < pOrig)
+      ? pOfer
+      : Math.round(pOrig * (1 - pct / 100) * 100) / 100;
+
+    return `
     <div class="oferta-card">
-      <span class="oferta-card__badge">${o.badge || '% OFF'}</span>
+      <span class="oferta-card__badge">${o.badge || `${pct}% OFF`}</span>
       <div class="oferta-card__img">
         <img src="${o.imagen_url}" alt="${o.nombre_producto}"
-          onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\ud83c\udff7\ufe0f',style:'font-size:3rem'}))"
+          onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\u{1F3F7}\uFE0F',style:'font-size:3rem'}))"
           style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
       </div>
       <div class="oferta-card__product">${o.nombre_producto || ''}</div>
       <div class="oferta-card__prices">
-        <span class="oferta-card__old-price">${formatMXN(withIVA(o.precio_original, o.es_alimento))}</span>
-        <span class="oferta-card__new-price">${formatMXN(Math.round(withIVA(o.precio_original, o.es_alimento) * (1 - o.descuento_pct / 100) * 100) / 100)}</span>
+        <span class="oferta-card__old-price">${formatMXN(pOrig)}</span>
+        <span class="oferta-card__new-price">${formatMXN(precioOferta)}</span>
       </div>
       <div class="oferta-card__desc">${o.descripcion || ''}</div>
       <div class="oferta-card__vigencia">
         📅 ${fmtFecha(o.fecha_ini)} → <strong>${fmtFecha(o.fecha_fin)}</strong>
       </div>
-    </div>`
-  ).join('');
+      <div class="add-to-cart-row">
+        <div class="card-qty-control">
+          <button class="card-qty-btn" data-action="minus">−</button>
+          <input type="number" class="card-qty-input" value="1" min="1" max="999">
+          <button class="card-qty-btn" data-action="plus">+</button>
+        </div>
+        <button class="btn-add-cart"
+          data-id="${o.producto_id}"
+          data-precio="${precioOferta}"
+          data-img="${o.imagen_url || ''}"
+          data-nombre="${(o.nombre_producto || '').replace(/"/g, '&quot;')}"
+          aria-label="Agregar al carrito">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+          Agregar
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+
+  // Event delegation para botones de carrito en ofertas
+  grid.querySelectorAll('.add-to-cart-row').forEach(row => {
+    const qtyInput = row.querySelector('.card-qty-input');
+    const addBtn   = row.querySelector('.btn-add-cart');
+
+    row.querySelectorAll('.card-qty-btn').forEach(qBtn => {
+      qBtn.addEventListener('click', () => {
+        let v = parseInt(qtyInput.value) || 1;
+        v = qBtn.dataset.action === 'plus' ? v + 1 : Math.max(1, v - 1);
+        qtyInput.value = v;
+      });
+    });
+
+    addBtn.addEventListener('click', () => {
+      Cart.add({
+        producto_id:     addBtn.dataset.id,
+        nombre_producto: addBtn.dataset.nombre,
+        precio_unitario: parseFloat(addBtn.dataset.precio),
+        imagen_url:      addBtn.dataset.img,
+        cantidad:        parseInt(qtyInput.value) || 1,
+      });
+      qtyInput.value = 1;
+    });
+  });
 }
 
 // Búsqueda en ofertas desde servidor
@@ -219,7 +311,7 @@ async function init() {
       fetchJSON(`${API}/api/productos`),
       fetchJSON(`${API}/api/ofertas`),
     ]);
-    state.productos = shuffle(productos); // aleatorio en cada carga
+    state.productos = shuffle(productos);
     state.ofertas = ofertas;
     renderProductos(state.productos.slice(0, PRODUCTOS_INICIAL));
     renderOfertas(ofertas);
