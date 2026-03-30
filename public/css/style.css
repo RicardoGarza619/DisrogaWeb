@@ -580,13 +580,15 @@ ul { list-style: none; }
   z-index: 2;
 }
 .marcas-title {
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-size: clamp(2rem, 4vw, 3.2rem);
   font-weight: 800;
   color: var(--texto-principal);
+  line-height: 1.18;
   letter-spacing: -0.02em;
   margin-bottom: 30px;
 }
-.marcas-title span {
+.marcas-title em {
+  font-style: normal;
   color: var(--verde-oscuro);
 }
 .marcas-slider {
