@@ -283,7 +283,7 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
     }
 
     const sql = `
-      SELECT FIRST 50
+      SELECT FIRST 1000
         p.cve_polit,
         TRIM(p.descr)        AS pol_descr,
         TRIM(p.cve_ini)      AS cve_art,

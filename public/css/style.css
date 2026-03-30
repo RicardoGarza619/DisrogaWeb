@@ -568,6 +568,68 @@ ul { list-style: none; }
 .sk-line.w-40 { width: 40%; }
 .sk-price { height: 24px; width: 50%; margin-top: 14px; border-radius: 6px; }
 
+/* ─── Marcas Slider ───────────────────────── */
+.marcas-section {
+  padding: 40px 20px;
+  background-color: var(--fondo);
+  text-align: center;
+  overflow: hidden;
+  border-bottom: 1px solid var(--gris-borde);
+  margin-top: -60px; /* Para acercarlo al hero */
+  position: relative;
+  z-index: 2;
+}
+.marcas-title {
+  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-weight: 800;
+  color: var(--texto-principal);
+  letter-spacing: -0.02em;
+  margin-bottom: 30px;
+}
+.marcas-title span {
+  color: var(--verde-oscuro);
+}
+.marcas-slider {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  position: relative;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+.marcas-track {
+  display: flex;
+  align-items: center;
+  gap: 60px;
+  animation: scroll-marcas 30s linear infinite;
+  padding: 0 30px;
+}
+.marcas-track:hover {
+  animation-play-state: paused;
+}
+.marcas-track img {
+  height: 45px;
+  max-width: 140px;
+  object-fit: contain;
+  filter: grayscale(100%) opacity(0.6);
+  transition: all 0.3s ease;
+}
+.marcas-track img:hover {
+  filter: grayscale(0%) opacity(1);
+}
+
+[data-theme="dark"] .marcas-track img:not(:hover) {
+  filter: grayscale(100%) invert(0.8) opacity(0.5);
+}
+
+@keyframes scroll-marcas {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-50% - 30px)); }
+}
+
 /* ─── Ofertas Section ───────────────────────── */
 .ofertas-section {
   background: linear-gradient(135deg, var(--verde-oscuro) 0%, #1e7a35 100%);
