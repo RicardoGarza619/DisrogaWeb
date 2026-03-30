@@ -34,11 +34,14 @@ const Auth = (() => {
 
     if (cliente) {
       authArea.innerHTML = `
-        <div class="navbar__user-info">
-          👤 <span>${cliente.nombre.split(' ')[0]}</span>
-          ${cliente.descuento > 0 ? `<span class="precio-descuento">${cliente.descuento}% Off</span>` : ''}
+        <div class="navbar__user-info" onclick="openProfileModal()" style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--texto-medio);transition:var(--transicion);" title="Ver Perfil">
+          <svg style="color:var(--verde-oscuro); transition: color 0.3s;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 2C8.686 2 6 4.686 6 8C6 11.314 8.686 14 12 14C15.314 14 18 11.314 18 8C18 4.686 15.314 2 12 2ZM4 20C4 16.686 6.686 14 10 14H14C17.314 14 20 16.686 20 20V22H4V20Z"/>
+          </svg>
+          <span style="font-weight:600;font-size:0.9rem;">${cliente.nombre.split(' ')[0]}</span>
+          ${cliente.descuento > 0 ? `<span class="precio-descuento" style="margin-left:4px;">${cliente.descuento}% Off</span>` : ''}
         </div>
-        <button class="navbar__logout" onclick="Auth.logout()">Salir</button>`;
+        <button class="navbar__logout" onclick="Auth.logout()" style="margin-left:8px;">Salir</button>`;
     } else {
       authArea.innerHTML = `
         <button class="btn-auth-open" onclick="openAuthModal()" style="background:none;border:1.5px solid var(--gris-borde);border-radius:var(--radio-pill);padding:6px 14px;font-size:0.85rem;font-weight:600;cursor:pointer;color:var(--texto-medio);transition:var(--transicion)">
@@ -68,6 +71,46 @@ function switchAuthTab(tab) {
 }
 function clearAuthErrors() {
   document.querySelectorAll('.form-error, .form-success').forEach(el => el.classList.remove('visible'));
+}
+
+// ─── Modal Perfil ─────────────────────────
+async function openProfileModal() {
+  document.getElementById('profile-overlay').classList.add('open');
+  const content = document.getElementById('profile-content');
+  const token = Auth.getToken();
+  if (!token) {
+    content.innerHTML = '<div style="color:var(--rojo-cancel); padding:20px; text-align:center;">Sesión no válida</div>';
+    return;
+  }
+
+  content.innerHTML = '<div style="text-align:center; padding: 20px;">Cargando información...</div>';
+
+  try {
+    const resp = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!resp.ok) throw new Error('Error al cargar la cuenta');
+    const { cliente } = await resp.json();
+    content.innerHTML = `
+      <div style="font-size:0.95rem; line-height:1.8; color: var(--texto-medio);">
+        <p><strong>Clave:</strong> ${cliente.clave}</p>
+        <p><strong>Nombre:</strong> ${cliente.nombre}</p>
+        <p><strong>Empresa/Comercial:</strong> ${cliente.nombre_comercial || 'N/D'}</p>
+        <p><strong>RFC:</strong> ${cliente.rfc || 'N/D'}</p>
+        <p><strong>Correo:</strong> ${cliente.email || 'N/D'}</p>
+        <p><strong>Teléfono:</strong> ${cliente.telefono || 'N/D'}</p>
+        <hr style="border:none; border-top:1px solid var(--gris-borde); margin: 12px 0;">
+        <p style="color:var(--verde-oscuro)"><strong>Descuento Cliente:</strong> ${cliente.descuento}%</p>
+        <p><strong>Límite de Crédito:</strong> ${parseFloat(cliente.limite_credito || 0) > 0 ? '$' + parseFloat(cliente.limite_credito).toFixed(2) : 'Sin límite o contado'}</p>
+        <p><strong>Saldo Actual:</strong> <span style="${parseFloat(cliente.saldo || 0) > 0 ? 'color:var(--rojo-cancel);font-weight:bold;' : ''}">$${parseFloat(cliente.saldo || 0).toFixed(2)}</span></p>
+      </div>`;
+  } catch (err) {
+    content.innerHTML = `<div style="color:var(--rojo-cancel); padding:20px; text-align:center;">${err.message}</div>`;
+  }
+}
+
+function closeProfileModal() {
+  document.getElementById('profile-overlay').classList.remove('open');
 }
 
 // ─── Login ───────────────────────────────────────────────
@@ -218,6 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cerrar modal al click fuera
   document.getElementById('auth-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeAuthModal();
+  });
+  document.getElementById('profile-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeProfileModal();
   });
   document.getElementById('auth-close')?.addEventListener('click', closeAuthModal);
 

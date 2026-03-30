@@ -150,9 +150,9 @@ app.post('/api/auth/reset-password', (req, res) => {
 
 // GET /api/auth/me
 app.get('/api/auth/me', requireAuth, (req, res) => {
-  const cliente = db.prepare('SELECT id,clave,nombre,rfc,calle,telefono,email,saldo,descuento,nombre_comercial FROM clientes WHERE id=?').get(req.cliente.id);
+  const cliente = db.prepare('SELECT id,clave,nombre,rfc,calle,telefono,email,saldo,descuento,limite_credito,nombre_comercial FROM clientes WHERE id=?').get(req.cliente.id);
   if (!cliente) return res.status(404).json({ error: 'No encontrado' });
-  res.json(cliente);
+  res.json({ cliente });
 });
 
 // ══════════════════════════════════════════════════════════
@@ -198,8 +198,19 @@ app.get('/api/productos', optionalAuth, async (req, res) => {
     const params = [];
 
     if (categoria) { where.push('TRIM(i.lin_prod) = ?'); params.push(categoria); }
-    if (q)         { where.push('(UPPER(i.descr) CONTAINING UPPER(?))'); params.push(q); }
-    if (cve)       { where.push('(i.cve_art CONTAINING ?)'); params.push(cve); }
+    if (q) {
+      const qSafe = q.substring(0, 40);
+      where.push('(UPPER(i.descr) CONTAINING UPPER(?))');
+      params.push(qSafe);
+    }
+    if (cve) {
+      if (cve.length > 16) {
+        where.push('1=0'); // Imposible que exista una clave mayor a 16
+      } else {
+        where.push('(i.cve_art CONTAINING ?)');
+        params.push(cve);
+      }
+    }
 
     const sql = `
       SELECT FIRST 200
@@ -265,7 +276,11 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
     const hoy = new Date().toISOString().split('T')[0];
     const params = [hoy, hoy];
     let extraWhere = '';
-    if (q) { extraWhere = ' AND (UPPER(i.descr) CONTAINING UPPER(?))'; params.push(q); }
+    if (q) {
+      const qSafe = q.substring(0, 40);
+      extraWhere = ' AND (UPPER(i.descr) CONTAINING UPPER(?))';
+      params.push(qSafe);
+    }
 
     const sql = `
       SELECT FIRST 50

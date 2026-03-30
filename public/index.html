@@ -396,6 +396,27 @@
     </div>
   </div>
 
+  <!-- ── Modal Perfil de Usuario ──────────────── -->
+  <div class="modal-overlay" id="profile-overlay">
+    <div class="modal auth-modal">
+      <div class="modal__header">
+        <span class="modal__title" style="display:flex;align-items:center;gap:6px;">
+          <svg style="color:var(--verde-oscuro); transition: color 0.3s;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="22" height="22">
+            <path d="M12 2C8.686 2 6 4.686 6 8C6 11.314 8.686 14 12 14C15.314 14 18 11.314 18 8C18 4.686 15.314 2 12 2ZM4 20C4 16.686 6.686 14 10 14H14C17.314 14 20 16.686 20 20V22H4V20Z"/>
+          </svg> Mi Perfil
+        </span>
+        <button class="modal__close" onclick="closeProfileModal()">✕</button>
+      </div>
+      <div class="modal__body" id="profile-content">
+        <!-- Llenado dinámicamente en JS -->
+        <div style="text-align:center; padding: 20px;">Cargando información...</div>
+      </div>
+      <div class="modal__footer" style="margin-top:20px; text-align:right;">
+        <button class="btn-form" onclick="Auth.logout()" style="background:var(--rojo-cancel); border-color:var(--rojo-cancel); padding: 8px 16px; font-size: 0.9rem;">Cerrar Sesión</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ── Modal Reset Password ─────────────────── -->
   <div class="modal-overlay" id="reset-password-overlay">
     <div class="modal">

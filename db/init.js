@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS clientes (
   email        TEXT,
   saldo        REAL    DEFAULT 0,
   descuento    REAL    DEFAULT 0,
+  limite_credito REAL  DEFAULT 0,
   nombre_comercial TEXT,
   password_hash    TEXT,
   reset_token      TEXT,
@@ -55,6 +56,12 @@ CREATE TABLE IF NOT EXISTS pedido_items (
   subtotal         REAL    NOT NULL
 );
 `);
+
+try {
+  db.exec("ALTER TABLE clientes ADD COLUMN limite_credito REAL DEFAULT 0;");
+} catch(e) {
+  // Ignorar si la columna ya existe
+}
 
 console.log('✅ BD SQLite inicializada en', DB_PATH);
 module.exports = db;

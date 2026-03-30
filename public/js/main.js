@@ -141,7 +141,23 @@ function renderProductos(lista) {
     return;
   }
 
-  grid.innerHTML = lista.map(p => `
+  grid.innerHTML = lista.map(p => {
+    const of = (state.ofertas || []).find(o => o.producto_id === p.id);
+    const pOrig  = parseFloat(p.precio) || 0;
+    let pMostrar = pOrig;
+    let lblOferta = '';
+
+    if (of) {
+      const pOfer = parseFloat(of.precio_oferta) || 0;
+      const pct   = parseFloat(of.descuento_pct) || 0;
+      const calc  = (pOfer > 0 && pOfer < pOrig) ? pOfer : Math.round(pOrig * (1 - pct/100) * 100) / 100;
+      if (calc < pOrig) {
+        pMostrar = calc;
+        lblOferta = `<div style="font-size:0.75rem; color:var(--rojo-cancel); font-weight:bold; margin-bottom: 2px;">-${pct || ((1 - calc/pOrig)*100).toFixed(0)}% OFF (<del style="color:var(--texto-suave);">${formatMXN(pOrig)}</del>)</div>`;
+      }
+    }
+
+    return `
     <article class="product-card" tabindex="0" aria-label="${p.nombre}">
       <div class="product-card__img">
         ${p.imagen_url
@@ -154,8 +170,9 @@ function renderProductos(lista) {
         <div class="product-card__name">${p.nombre}</div>
         <div class="product-card__footer">
           <div class="product-card__price">
+            ${lblOferta}
             <span class="product-card__price-label">por ${p.unidad || 'pieza'}</span>
-            <span class="product-card__price-value">${formatMXN(p.precio)}</span>
+            <span class="product-card__price-value">${formatMXN(pMostrar)}</span>
           </div>
           <span class="product-card__unit">${p.unidad || 'pieza'}</span>
         </div>
@@ -167,7 +184,7 @@ function renderProductos(lista) {
           </div>
           <button class="btn-add-cart"
             data-id="${p.id}"
-            data-precio="${p.precio}"
+            data-precio="${pMostrar}"
             data-img="${p.imagen_url || ''}"
             data-nombre="${p.nombre.replace(/"/g, '&quot;')}"
             data-exist="${p.existencia || 0}"
@@ -177,8 +194,8 @@ function renderProductos(lista) {
           </button>
         </div>
       </div>
-    </article>
-  `).join('');
+    </article>`;
+  }).join('');
 
   // Event delegation para botones de carrito en productos
   grid.querySelectorAll('.add-to-cart-row').forEach(row => {

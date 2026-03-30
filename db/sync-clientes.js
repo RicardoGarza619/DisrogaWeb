@@ -30,18 +30,19 @@ async function syncClientes() {
           TRIM(c.EMAILPRED)       AS email,
           c.SALDO                 AS saldo,
           c.DESCUENTO             AS descuento,
+          c.LIMCRED               AS limite_credito,
           TRIM(c.NOMBRECOMERCIAL) AS nombre_comercial
         FROM CLIE03 c
-        WHERE c.STATUS = 'A'
+        WHERE c.STATUS = 'A' AND UPPER(c.CLASIFIC) STARTING WITH 'N'
       `, [], (err2, rows) => {
         fbdb.detach();
         if (err2) return reject(err2);
 
         const upsert = db.prepare(`
           INSERT INTO clientes
-            (clave, nombre, rfc, calle, telefono, email, saldo, descuento, nombre_comercial, synced_at)
+            (clave, nombre, rfc, calle, telefono, email, saldo, descuento, limite_credito, nombre_comercial, synced_at)
           VALUES
-            (@clave, @nombre, @rfc, @calle, @telefono, @email, @saldo, @descuento, @nombre_comercial, datetime('now'))
+            (@clave, @nombre, @rfc, @calle, @telefono, @email, @saldo, @descuento, @limite_credito, @nombre_comercial, datetime('now'))
           ON CONFLICT(clave) DO UPDATE SET
             nombre           = excluded.nombre,
             rfc              = excluded.rfc,
@@ -50,6 +51,7 @@ async function syncClientes() {
             email            = excluded.email,
             saldo            = excluded.saldo,
             descuento        = excluded.descuento,
+            limite_credito   = excluded.limite_credito,
             nombre_comercial = excluded.nombre_comercial,
             synced_at        = datetime('now')
         `);
@@ -71,6 +73,7 @@ async function syncClientes() {
           email:            str(r.email),
           saldo:            num(r.saldo),
           descuento:        num(r.descuento),
+          limite_credito:   num(r.limite_credito),
           nombre_comercial: str(r.nombre_comercial),
         }));
 
