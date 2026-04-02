@@ -1,0 +1,24 @@
+# Entorno y Secretos (¡NUNCA los subas!)
+.env
+
+# Base de datos (Evita el error de bloqueo que tuviste)
+db/*.db
+db/*.db-shm
+db/*.db-wal
+db/*.sqlite
+
+# Dependencias (Se instalan por separado en cada equipo)
+node_modules/
+
+# Archivos específicos de Windows
+Thumbs.db
+desktop.ini
+*.lnk
+
+# Archivos específicos de Linux
+.DS_Store
+.directory
+
+# Archivos temporales de ejecución
+*.log
+npm-debug.log*

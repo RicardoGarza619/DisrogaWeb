@@ -17,7 +17,7 @@ const Cart = (() => {
     const existing = items.find(i => i.producto_id === producto.producto_id);
     if (existing) {
       existing.cantidad += qty;
-      existing.existencia = parseInt(producto.existencia) || 0; // mantener la existencia más reciente
+      existing.existencia = parseInt(producto.existencia) || 0;
       existing.subtotal = Math.round(existing.cantidad * existing.precio_unitario * 100) / 100;
     } else {
       items.push({
@@ -97,7 +97,6 @@ const Cart = (() => {
           <p>Tu carrito está vacío</p>
         </div>`;
     } else {
-      // Usamos event delegation en lugar de onclick inline
       container.innerHTML = items.map(it => `
         <div class="cart-item" data-id="${it.producto_id}">
           <div class="cart-item__img">
@@ -118,7 +117,6 @@ const Cart = (() => {
         </div>
       `).join('');
 
-      // Event delegation: botones de qty y eliminar en el drawer
       container.querySelectorAll('.qty-drawer-btn').forEach(btn => {
         btn.addEventListener('click', () => setQty(btn.dataset.id, btn.dataset.qty));
       });
@@ -159,41 +157,62 @@ const Cart = (() => {
   return { add, remove, setQty, clear, total, count, getItems, openDrawer, closeDrawer, updateBadge, renderDrawer };
 })();
 
-// ─── Checkout Modal ──────────────────────────────────────
+// ─── Checkout: abre el modal correcto según sesión ──────────────
 function openCheckout() {
   if (!Cart.count()) return;
   Cart.closeDrawer();
   const cliente = typeof Auth !== 'undefined' ? Auth.getCliente() : null;
 
   if (cliente) {
-    document.getElementById('co-nombre').value   = cliente.nombre || '';
-    document.getElementById('co-empresa').value  = cliente.nombre_comercial || '';
-    document.getElementById('co-telefono').value = cliente.telefono || '';
-    document.getElementById('co-email').value    = cliente.email || '';
+    // Modal cliente registrado
+    const infoBox = document.getElementById('cc-info-box');
+    if (infoBox) {
+      infoBox.innerHTML = `
+        <div style="font-weight:700; color:var(--verde-oscuro); margin-bottom:8px;">👤 Solicitud como cliente registrado</div>
+        <div><strong>Nombre:</strong> ${cliente.nombre}</div>
+        ${cliente.email    ? `<div><strong>Correo:</strong> ${cliente.email}</div>` : ''}
+        ${cliente.telefono ? `<div><strong>Teléfono:</strong> ${cliente.telefono}</div>` : ''}
+        <div style="margin-top:8px; font-size:0.8rem; color:var(--texto-suave);">Tu información de contacto ya está registrada en el sistema.</div>`;
+    }
+    // Resetear botón
+    const btn = document.getElementById('cc-submit');
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar Solicitud de Pedido'; }
+
+    document.getElementById('cc-notas').value = '';
+    document.getElementById('checkout-cliente-error').classList.remove('visible');
+    document.getElementById('checkout-cliente-success').classList.remove('visible');
+    document.getElementById('checkout-cliente-overlay').classList.add('open');
   } else {
-    ['co-nombre','co-empresa','co-telefono','co-email'].forEach(id => {
+    // Modal invitado
+    ['co-nombre','co-empresa','co-telefono','co-email','co-notas'].forEach(id => {
       document.getElementById(id).value = '';
     });
+    // Resetear botón
+    const btn = document.getElementById('co-submit');
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar Solicitud de Pedido'; }
+
+    document.getElementById('checkout-error').classList.remove('visible');
+    document.getElementById('checkout-success').classList.remove('visible');
+    document.getElementById('checkout-overlay').classList.add('open');
   }
-  document.getElementById('co-notas').value = '';
-  document.getElementById('checkout-error').classList.remove('visible');
-  document.getElementById('checkout-success').classList.remove('visible');
-  document.getElementById('checkout-overlay').classList.add('open');
 }
 
 function closeCheckout() {
   document.getElementById('checkout-overlay').classList.remove('open');
 }
 
+function closeCheckoutCliente() {
+  document.getElementById('checkout-cliente-overlay').classList.remove('open');
+}
+
+// ─── Submit Invitado ────────────────────────────────────────────
 async function submitCheckout(e) {
   e.preventDefault();
   const btn   = document.getElementById('co-submit');
   const errEl = document.getElementById('checkout-error');
   const okEl  = document.getElementById('checkout-success');
-  btn.disabled = true;
-  btn.textContent = 'Enviando…';
-  errEl.classList.remove('visible');
-  okEl.classList.remove('visible');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  errEl.classList.remove('visible'); okEl.classList.remove('visible');
 
   const body = {
     nombre_contacto: document.getElementById('co-nombre').value.trim(),
@@ -204,38 +223,86 @@ async function submitCheckout(e) {
     items:           Cart.getItems(),
   };
 
-  const token = typeof Auth !== 'undefined' ? Auth.getToken() : null;
-  const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
   try {
-    const resp = await fetch('/api/pedidos', { method: 'POST', headers, body: JSON.stringify(body) });
+    const resp = await fetch('/api/pedidos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error || 'Error al enviar pedido');
-    okEl.textContent = data.mensaje || '¡Pedido enviado! Nos contactaremos contigo pronto.';
+    if (!resp.ok) throw new Error(data.error || 'Error al enviar');
+    okEl.textContent = data.mensaje || '¡Solicitud enviada! Nos contactaremos pronto.';
     okEl.classList.add('visible');
-    Cart.clear();
-    btn.textContent = '¡Enviado!';
+    Cart.clear(); btn.textContent = '¡Solicitud enviada!';
     setTimeout(closeCheckout, 3000);
   } catch(err) {
-    errEl.textContent = err.message;
-    errEl.classList.add('visible');
-    btn.disabled = false;
-    btn.textContent = 'Enviar Pedido';
+    errEl.textContent = err.message; errEl.classList.add('visible');
+    btn.disabled = false; btn.textContent = 'Enviar Solicitud de Pedido';
   }
 }
 
-// ─── Init ────────────────────────────────────────────────
+// ─── Submit Cliente Registrado ──────────────────────────────────
+async function submitCheckoutCliente(e) {
+  e.preventDefault();
+  const btn   = document.getElementById('cc-submit');
+  const errEl = document.getElementById('checkout-cliente-error');
+  const okEl  = document.getElementById('checkout-cliente-success');
+  btn.disabled = true; btn.textContent = 'Enviando…';
+  errEl.classList.remove('visible'); okEl.classList.remove('visible');
+
+  const cliente = typeof Auth !== 'undefined' ? Auth.getCliente() : null;
+  if (!cliente) {
+    errEl.textContent = 'Sesión expirada. Por favor inicia sesión de nuevo.';
+    errEl.classList.add('visible');
+    btn.disabled = false; btn.textContent = 'Enviar Solicitud de Pedido';
+    return;
+  }
+
+  const body = {
+    nombre_contacto: cliente.nombre,
+    empresa:         cliente.nombre_comercial || '',
+    telefono:        cliente.telefono || '',
+    email:           cliente.email || '',
+    notas:           document.getElementById('cc-notas').value.trim(),
+    items:           Cart.getItems(),
+  };
+
+  const token = Auth.getToken();
+  try {
+    const resp = await fetch('/api/pedidos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Error al enviar');
+    okEl.textContent = data.mensaje || '¡Solicitud enviada! Nuestro equipo se pondrá en contacto contigo.';
+    okEl.classList.add('visible');
+    Cart.clear(); btn.textContent = '¡Solicitud enviada!';
+    setTimeout(closeCheckoutCliente, 3000);
+  } catch(err) {
+    errEl.textContent = err.message; errEl.classList.add('visible');
+    btn.disabled = false; btn.textContent = 'Enviar Solicitud de Pedido';
+  }
+}
+
+// ─── Init ───────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   Cart.updateBadge();
 
   document.getElementById('cart-btn')?.addEventListener('click', Cart.openDrawer);
   document.getElementById('cart-overlay')?.addEventListener('click', Cart.closeDrawer);
   document.getElementById('cart-close')?.addEventListener('click', Cart.closeDrawer);
+
+  // Modal invitado
   document.getElementById('checkout-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeCheckout();
   });
   document.getElementById('checkout-close')?.addEventListener('click', closeCheckout);
-  document.getElementById('cart-checkout-btn')?.addEventListener('click', openCheckout);
   document.getElementById('checkout-form')?.addEventListener('submit', submitCheckout);
+
+  // Modal cliente registrado
+  document.getElementById('checkout-cliente-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeCheckoutCliente();
+  });
+  document.getElementById('checkout-cliente-close')?.addEventListener('click', closeCheckoutCliente);
+  document.getElementById('checkout-cliente-form')?.addEventListener('submit', submitCheckoutCliente);
+
+  document.getElementById('cart-checkout-btn')?.addEventListener('click', openCheckout);
 });

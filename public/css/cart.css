@@ -320,3 +320,93 @@
 .oferta-card .add-to-cart-row {
   margin-top: 14px;
 }
+
+/* ─── Modal Mis Pedidos ──────────────────────── */
+.pedidos-modal {
+  max-width: 680px;
+  width: 95%;
+}
+.pedidos-modal .modal__body {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.pedido-card {
+  border: 1px solid var(--gris-borde);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+  background: var(--gris-card);
+  transition: box-shadow 0.25s;
+}
+.pedido-card:hover {
+  box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+}
+.pedido-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pedido-card__id {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--texto-principal);
+  margin-right: 8px;
+}
+.pedido-card__fecha {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+}
+.pedido-card__items {
+  border-top: 1px solid var(--gris-borde);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pedido-item {
+  display: grid;
+  grid-template-columns: 1fr 60px 80px;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.pedido-item__nombre {
+  color: var(--texto-medio);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pedido-item__qty {
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-align: right;
+}
+.pedido-item__precio {
+  font-weight: 600;
+  color: var(--texto-principal);
+  white-space: nowrap;
+  text-align: right;
+}
+.pedido-card__total {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--gris-borde);
+  text-align: right;
+  font-size: 0.9rem;
+  color: var(--texto-medio);
+}
+.pedido-card__total strong {
+  color: var(--verde-oscuro);
+  font-size: 1rem;
+}
+.pedido-card__notas {
+  margin-top: 8px;
+  font-size: 0.82rem;
+  color: var(--texto-suave);
+  font-style: italic;
+}

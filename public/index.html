@@ -114,25 +114,27 @@
 
   <!-- ── Marcas ────────────────────────────────── -->
   <section class="marcas-section" id="marcas">
-    <h1 class="marcas-title">Nuestras <br /><em>Marcas</em></h1>
+    <div class="marcas-eyebrow">✨ Distribuidor Autorizado</div>
+    <h2 class="marcas-title">Nuestras <em>Marcas</em></h2>
     <div class="marcas-slider">
       <div class="marcas-track">
-        <!-- Grupo 1 -->
-        <img src="img/marcas/Colgate.jpg" alt="Colgate">
-        <img src="img/marcas/La_Costena.png" alt="La Costeña">
-        <img src="img/marcas/SC_Johnson.png" alt="SC Johnson">
-        <img src="img/marcas/Suavitel.png" alt="Suavitel">
-        <img src="img/marcas/unilever.png" alt="Unilever">
-        <img src="img/marcas/Verde Valle.png" alt="Verde Valle">
-        <img src="img/marcas/colgate_palmolive.png" alt="Colgate Palmolive">
-        <!-- Grupo 2 (Duplicado exacto para el loop infinito) -->
-        <img src="img/marcas/Colgate.jpg" alt="Colgate">
-        <img src="img/marcas/La_Costena.png" alt="La Costeña">
-        <img src="img/marcas/SC_Johnson.png" alt="SC Johnson">
-        <img src="img/marcas/Suavitel.png" alt="Suavitel">
-        <img src="img/marcas/unilever.png" alt="Unilever">
-        <img src="img/marcas/Verde Valle.png" alt="Verde Valle">
-        <img src="img/marcas/colgate_palmolive.png" alt="Colgate Palmolive">
+        <div class="marcas-card"><img src="img/marcas/Colgate.jpg" alt="Colgate"></div>
+        <div class="marcas-card"><img src="img/marcas/La_Costena.png" alt="La Costeña"></div>
+        <div class="marcas-card"><img src="img/marcas/SC_Johnson.png" alt="SC Johnson"></div>
+        <div class="marcas-card"><img src="img/marcas/Suavitel.png" alt="Suavitel"></div>
+        <div class="marcas-card"><img src="img/marcas/unilever.png" alt="Unilever"></div>
+        <div class="marcas-card"><img src="img/marcas/Verde Valle.png" alt="Verde Valle"></div>
+        <div class="marcas-card"><img src="img/marcas/colgate_palmolive.png" alt="Colgate Palmolive"></div>
+        <div class="marcas-card"><img src="img/marcas/Kimberly.png" alt="Kimberly"></div>
+        <!-- Duplicado para loop infinito -->
+        <div class="marcas-card"><img src="img/marcas/Colgate.jpg" alt="Colgate"></div>
+        <div class="marcas-card"><img src="img/marcas/La_Costena.png" alt="La Costeña"></div>
+        <div class="marcas-card"><img src="img/marcas/SC_Johnson.png" alt="SC Johnson"></div>
+        <div class="marcas-card"><img src="img/marcas/Suavitel.png" alt="Suavitel"></div>
+        <div class="marcas-card"><img src="img/marcas/unilever.png" alt="Unilever"></div>
+        <div class="marcas-card"><img src="img/marcas/Verde Valle.png" alt="Verde Valle"></div>
+        <div class="marcas-card"><img src="img/marcas/colgate_palmolive.png" alt="Colgate Palmolive"></div>
+        <div class="marcas-card"><img src="img/marcas/Kimberly.png" alt="Kimberly"></div>
       </div>
     </div>
   </section>
@@ -377,14 +379,13 @@
             </div>
             <button class="btn-form" id="forgot-submit" type="submit">Enviar Enlace de Recuperación</button>
           </form>
-          <p class="form-alt-text"><span class="form-link" onclick="switchAuthTab('login')">← Volver al inicio de
-              sesión</span></p>
+          <p class="form-alt-text"><span class="form-link" onclick="switchAuthTab('login')">← Volver al inicio de sesión</span></p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── Modal Checkout ───────────────────────── -->
+  <!-- ── Modal Checkout (Invitados) ───────────── -->
   <div class="modal-overlay" id="checkout-overlay">
     <div class="modal">
       <div class="modal__header">
@@ -415,7 +416,31 @@
             <label>Notas o comentarios</label>
             <textarea id="co-notas" placeholder="Instrucciones especiales, horario de entrega, etc."></textarea>
           </div>
-          <button class="btn-form" id="co-submit" type="submit">Enviar Pedido</button>
+          <button class="btn-form" id="co-submit" type="submit">Enviar Solicitud de Pedido</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal Checkout (Cliente Registrado) ─── -->
+  <div class="modal-overlay" id="checkout-cliente-overlay">
+    <div class="modal">
+      <div class="modal__header">
+        <span class="modal__title">📦 Solicitar Pedido</span>
+        <button class="modal__close" id="checkout-cliente-close">✕</button>
+      </div>
+      <div class="modal__body">
+        <div class="form-error" id="checkout-cliente-error"></div>
+        <div class="form-success" id="checkout-cliente-success"></div>
+        <div id="cc-info-box" style="background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:10px; padding:14px; margin-bottom:16px; font-size:0.9rem; line-height:1.9;">
+          <!-- llenado dinámicamente -->
+        </div>
+        <form id="checkout-cliente-form">
+          <div class="form-group">
+            <label>Notas o comentarios</label>
+            <textarea id="cc-notas" placeholder="Instrucciones especiales, horario de entrega, etc."></textarea>
+          </div>
+          <button class="btn-form" id="cc-submit" type="submit">Enviar Solicitud de Pedido</button>
         </form>
       </div>
     </div>
@@ -438,10 +463,29 @@
         <!-- Llenado dinámicamente en JS -->
         <div style="text-align:center; padding: 20px;">Cargando información...</div>
       </div>
-      <div class="modal__footer" style="margin-top:20px; text-align:right;">
-        <button class="btn-form" onclick="Auth.logout()"
-          style="background:var(--rojo-cancel); border-color:var(--rojo-cancel); padding: 8px 16px; font-size: 0.9rem;">Cerrar
-          Sesión</button>
+      <div class="modal__footer"
+        style="margin-top:20px; display:flex; gap:10px; justify-content:flex-end; align-items:center; border-top:1px solid var(--gris-borde); padding-top:14px;">
+        <button onclick="openPedidosModal()"
+          style="background:none; border:1.5px solid var(--verde-oscuro); color:var(--verde-oscuro); border-radius:var(--radio-pill); padding:6px 14px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:var(--transicion); display:flex; align-items:center; gap:5px;">
+          📦 Mis Pedidos
+        </button>
+        <button onclick="Auth.logout()"
+          style="background:var(--rojo-cancel); border:1.5px solid var(--rojo-cancel); color:#fff; border-radius:var(--radio-pill); padding:6px 14px; font-size:0.82rem; font-weight:600; cursor:pointer; transition:var(--transicion);">
+          Cerrar Sesión
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Modal Mis Pedidos ────────────────────── -->
+  <div class="modal-overlay" id="pedidos-overlay">
+    <div class="modal pedidos-modal">
+      <div class="modal__header">
+        <span class="modal__title">📦 Mis Pedidos</span>
+        <button class="modal__close" onclick="closePedidosModal()">✕</button>
+      </div>
+      <div class="modal__body" id="pedidos-content">
+        <div style="text-align:center; padding:30px;">Cargando pedidos...</div>
       </div>
     </div>
   </div>

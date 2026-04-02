@@ -113,6 +113,66 @@ function closeProfileModal() {
   document.getElementById('profile-overlay').classList.remove('open');
 }
 
+// ─── Modal Mis Pedidos ──────────────────────────────
+async function openPedidosModal() {
+  closeProfileModal();
+  document.getElementById('pedidos-overlay').classList.add('open');
+  const content = document.getElementById('pedidos-content');
+  const token = Auth.getToken();
+  content.innerHTML = '<div style="text-align:center; padding:30px;">Cargando pedidos...</div>';
+
+  try {
+    const resp = await fetch('/api/mis-pedidos', { headers: { 'Authorization': `Bearer ${token}` } });
+    if (!resp.ok) throw new Error('No se pudo cargar el historial');
+    const { pedidos } = await resp.json();
+
+    if (!pedidos.length) {
+      content.innerHTML = `<div style="text-align:center; padding:40px; color:var(--texto-suave);">No tienes pedidos registrados todavía.</div>`;
+      return;
+    }
+
+    const fmtFecha = (s) => {
+      if (!s) return '';
+      const d = new Date(s.replace(' ', 'T'));
+      return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    };
+    const fmtMXN = (n) => parseFloat(n || 0).toLocaleString('es-MX', { style:'currency', currency:'MXN' });
+
+    const estadoChip = (e) => {
+      const map = { pendiente: ['#f59e0b','#fffbeb'], completado: ['#22c55e','#f0fdf4'], cancelado: ['#ef4444','#fef2f2'] };
+      const [col, bg] = map[e] || ['#6b7280','#f9fafb'];
+      return `<span style="background:${bg};color:${col};border:1px solid ${col}33;border-radius:20px;padding:2px 10px;font-size:0.78rem;font-weight:700;">${e.toUpperCase()}</span>`;
+    };
+
+    content.innerHTML = pedidos.map(p => `
+      <div class="pedido-card">
+        <div class="pedido-card__header">
+          <div>
+            <span class="pedido-card__id">#${p.id}</span>
+          </div>
+          <span class="pedido-card__fecha">${fmtFecha(p.created_at)}</span>
+        </div>
+        <div class="pedido-card__items">
+          ${p.items.map(it => `
+            <div class="pedido-item">
+              <span class="pedido-item__nombre">${it.nombre_producto}</span>
+              <span class="pedido-item__qty">${it.cantidad} ${it.cantidad === 1 ? 'pieza' : 'piezas'}</span>
+              <span class="pedido-item__precio">${fmtMXN(it.subtotal)}</span>
+            </div>`).join('')}
+        </div>
+        <div class="pedido-card__total">Total: <strong>${fmtMXN(p.total)}</strong></div>
+        ${p.notas ? `<div class="pedido-card__notas">📌 ${p.notas}</div>` : ''}
+      </div>`).join('');
+
+  } catch(err) {
+    content.innerHTML = `<div style="color:var(--rojo-cancel); padding:20px; text-align:center;">${err.message}</div>`;
+  }
+}
+
+function closePedidosModal() {
+  document.getElementById('pedidos-overlay').classList.remove('open');
+}
+
 // ─── Login ───────────────────────────────────────────────
 async function submitLogin(e) {
   e.preventDefault();
@@ -141,8 +201,9 @@ async function submitLogin(e) {
       throw new Error(data.error || 'Error al iniciar sesión');
     }
     Auth.save(data.token, data.cliente);
+    Cart.clear(); // Vaciar para aplicar precios de cliente
     closeAuthModal();
-    location.reload(); // recargar para precios de cliente
+    location.reload();
   } catch(err) {
     errEl.textContent = err.message;
     errEl.classList.add('visible');
@@ -179,6 +240,7 @@ async function submitSetPassword(e) {
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Error al guardar contraseña');
     Auth.save(data.token, data.cliente);
+    Cart.clear(); // Vaciar para aplicar precios de cliente
     okEl.textContent = '¡Contraseña creada! Iniciando sesión…';
     okEl.classList.add('visible');
     setTimeout(() => { closeAuthModal(); location.reload(); }, 1500);
@@ -264,6 +326,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('profile-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeProfileModal();
+  });
+  document.getElementById('pedidos-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closePedidosModal();
   });
   document.getElementById('auth-close')?.addEventListener('click', closeAuthModal);
 

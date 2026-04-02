@@ -155,6 +155,27 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ cliente });
 });
 
+// GET /api/mis-pedidos
+app.get('/api/mis-pedidos', requireAuth, (req, res) => {
+  const pedidos = db.prepare(`
+    SELECT id, nombre_contacto, empresa, telefono, email, notas, total, estado, created_at
+    FROM pedidos
+    WHERE cliente_id = ?
+    ORDER BY created_at DESC
+    LIMIT 50
+  `).all(req.cliente.id);
+
+  const pedidosConItems = pedidos.map(p => ({
+    ...p,
+    items: db.prepare(`
+      SELECT producto_id, nombre_producto, cantidad, precio_unitario, subtotal
+      FROM pedido_items WHERE pedido_id = ?
+    `).all(p.id)
+  }));
+
+  res.json({ pedidos: pedidosConItems });
+});
+
 // ══════════════════════════════════════════════════════════
 // ADMIN – Sincronización de clientes
 // ══════════════════════════════════════════════════════════
@@ -221,6 +242,7 @@ app.get('/api/productos', optionalAuth, async (req, res) => {
         TRIM(i.uni_alt)      AS unidad,
         TRIM(i.cve_prodserv) AS cve_prodserv,
         i.exist              AS existencia,
+        i.version_sinc_fecha_img AS version_img,
         pp1.precio           AS precio_publico
       FROM inve03 i
       LEFT JOIN clin03 l            ON l.cve_lin  = i.lin_prod
@@ -247,6 +269,7 @@ app.get('/api/productos', optionalAuth, async (req, res) => {
         precioFinal = Math.round(conIva * 1.10 * 100) / 100; // +10% invitado
       }
 
+      const vStr = r.version_img ? (r.version_img instanceof Date ? r.version_img.getTime() : encodeURIComponent(String(r.version_img).trim())) : '';
       return {
         id:          clean(r.id),
         nombre:      clean(r.nombre),
@@ -255,7 +278,7 @@ app.get('/api/productos', optionalAuth, async (req, res) => {
         existencia:  r.existencia || 0,
         precio:      precioFinal,
         es_alimento: esAlimento,
-        imagen_url:  `/img/${clean(r.id)}`,
+        imagen_url:  `/img/${clean(r.id)}${vStr ? '?v=' + vStr : ''}`,
       };
     });
 
@@ -295,6 +318,7 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
         p.v_hfech            AS fecha_fin,
         pp1.precio           AS precio_pub,
         i.exist              AS existencia,
+        i.version_sinc_fecha_img AS version_img,
         TRIM(i.lin_prod)     AS categoria_id,
         TRIM(l.desc_lin)     AS categoria
       FROM poli03 p
@@ -327,6 +351,8 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
         precioOriginal = Math.round(conIva * 1.10 * 100) / 100;
       }
       const precioOferta = Math.round(precioOriginal * (1 - pct / 100) * 100) / 100;
+      
+      const vStr = r.version_img ? (r.version_img instanceof Date ? r.version_img.getTime() : encodeURIComponent(String(r.version_img).trim())) : '';
 
       return {
         id: r.cve_polit,
@@ -342,7 +368,7 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
         fecha_ini:       fmt(r.fecha_ini),
         fecha_fin:       fmt(r.fecha_fin),
         existencia:      r.existencia || 0,
-        imagen_url:      `/img/${clean(r.cve_art)}`,
+        imagen_url:      `/img/${clean(r.cve_art)}${vStr ? '?v=' + vStr : ''}`,
         categoria:       clean(r.categoria) || clean(r.categoria_id),
         es_alimento:     esAlimento,
       };
@@ -361,7 +387,16 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
 app.post('/api/pedidos', optionalAuth, async (req, res) => {
   const { nombre_contacto, empresa, telefono, email, notas, items } = req.body;
 
-  if (!nombre_contacto || !telefono || !email) return res.status(400).json({ error: 'Nombre, teléfono y correo son requeridos' });
+  // Si no hay sesión (invitado), exigimos nombre, teléfono y correo
+  if (!req.cliente && (!nombre_contacto || !telefono || !email)) {
+    return res.status(400).json({ error: 'Nombre, teléfono y correo son requeridos para invitados' });
+  }
+
+  // A los clientes registrados se les permite tener datos en blanco si su cuenta no los tiene
+  const nombre_final = nombre_contacto || (req.cliente ? req.cliente.nombre : 'Sin nombre');
+  const telefono_final = telefono || '';
+  const email_final = email || '';
+
   if (!items || !items.length) return res.status(400).json({ error: 'El carrito está vacío' });
 
   const total = items.reduce((s, it) => s + (it.subtotal || it.precio_unitario * it.cantidad), 0);
@@ -377,7 +412,7 @@ app.post('/api/pedidos', optionalAuth, async (req, res) => {
 
   const createOrder = db.transaction(() => {
     const { lastInsertRowid } = insertPedido.run(
-      req.cliente?.id ?? null, nombre_contacto, empresa || null, telefono, email, notas || null, Math.round(total * 100) / 100
+      req.cliente?.id ?? null, nombre_final, empresa || null, telefono_final, email_final, notas || null, Math.round(total * 100) / 100
     );
     for (const it of items) {
       const subtotal = Math.round(it.precio_unitario * it.cantidad * 100) / 100;
