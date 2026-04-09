@@ -297,82 +297,209 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
     const { q } = req.query;
     const cliente = req.cliente;
     const hoy = new Date().toISOString().split('T')[0];
-    const params = [hoy, hoy];
+
+    // Campos comunes para ambas queries
+    const CAMPOS = `
+      p.cve_polit,
+      TRIM(p.descr)            AS pol_descr,
+      TRIM(p.t_pol)            AS t_pol,
+      TRIM(p.prc_mon)          AS prc_mon,
+      p.val                    AS descuento_val,
+      p.v_dfech                AS fecha_ini,
+      p.v_hfech                AS fecha_fin,
+      p.limunivta              AS limunivta,
+      p.numuniven              AS numuniven,
+      TRIM(i.cve_art)          AS cve_art,
+      TRIM(i.descr)            AS prod_nombre,
+      TRIM(i.uni_alt)          AS unidad,
+      TRIM(i.cve_prodserv)     AS cve_prodserv,
+      pp1.precio               AS precio_pub,
+      i.exist                  AS existencia,
+      i.version_sinc_fecha_img AS version_img,
+      TRIM(i.lin_prod)         AS categoria_id,
+      TRIM(l.desc_lin)         AS categoria
+    `;
+
+    // Una política aplica si:
+    //   a) está en rango de fechas vigente, O
+    //   b) es por cantidad y aún tiene unidades disponibles
+    const WHERE_BASE = `
+      p.st = 'A'
+      AND (
+        (p.v_dfech <= ? AND p.v_hfech >= ?)
+        OR (p.limunivta > 0 AND p.numuniven < p.limunivta)
+      )
+      AND i.status = 'A'
+      AND pp1.precio > 1
+    `;
+
     let extraWhere = '';
+    const extraParams = [];
     if (q) {
       const qSafe = q.substring(0, 40);
       extraWhere = ' AND (UPPER(i.descr) CONTAINING UPPER(?))';
-      params.push(qSafe);
+      extraParams.push(qSafe);
     }
 
-    const sql = `
-      SELECT FIRST 1000
-        p.cve_polit,
-        TRIM(p.descr)        AS pol_descr,
-        TRIM(p.cve_ini)      AS cve_art,
-        TRIM(i.descr)        AS prod_nombre,
-        TRIM(i.uni_alt)      AS unidad,
-        TRIM(i.cve_prodserv) AS cve_prodserv,
-        p.val                AS descuento_pct,
-        p.v_dfech            AS fecha_ini,
-        p.v_hfech            AS fecha_fin,
-        pp1.precio           AS precio_pub,
-        i.exist              AS existencia,
-        i.version_sinc_fecha_img AS version_img,
-        TRIM(i.lin_prod)     AS categoria_id,
-        TRIM(l.desc_lin)     AS categoria
+    // ── Query 1: Políticas por artículo (cve_ini tiene valor) ──
+    const sqlArt = `
+      SELECT FIRST 500 ${CAMPOS}
       FROM poli03 p
-      JOIN inve03 i         ON i.cve_art = p.cve_ini
-      JOIN precio_x_prod03 pp1 ON pp1.cve_art = i.cve_art AND pp1.cve_precio = 1
-      LEFT JOIN clin03 l    ON l.cve_lin = i.lin_prod
-      WHERE p.st = 'A'
-        AND p.v_dfech <= ?
-        AND p.v_hfech >= ?
-        AND i.status = 'A'
-        AND pp1.precio > 1
+      JOIN inve03 i
+        ON TRIM(i.cve_art) = TRIM(p.cve_ini)
+      JOIN precio_x_prod03 pp1
+        ON pp1.cve_art = i.cve_art AND pp1.cve_precio = 1
+      LEFT JOIN clin03 l ON l.cve_lin = i.lin_prod
+      WHERE ${WHERE_BASE}
+        AND p.cve_ini IS NOT NULL
         ${extraWhere}
-      ORDER BY p.val DESC, p.v_hfech
+      ORDER BY p.val DESC
     `;
 
-    const rows = await fbQuery(sql, params);
-    const fmt = (d) => { if (!d) return null; if (d instanceof Date) return d.toISOString().split('T')[0]; return String(d).split('T')[0]; };
+    // ── Query 2: Políticas por línea (cve_ini NULL, lin_prod real) ──
+    const sqlLin = `
+      SELECT FIRST 2000 ${CAMPOS}
+      FROM poli03 p
+      JOIN inve03 i
+        ON TRIM(i.lin_prod) = TRIM(p.lin_prod)
+      JOIN precio_x_prod03 pp1
+        ON pp1.cve_art = i.cve_art AND pp1.cve_precio = 1
+      LEFT JOIN clin03 l ON l.cve_lin = i.lin_prod
+      WHERE ${WHERE_BASE}
+        AND p.cve_ini IS NULL
+        AND TRIM(p.lin_prod) <> '?????'
+        AND TRIM(p.lin_prod) <> ''
+        ${extraWhere}
+      ORDER BY p.val DESC
+    `;
 
-    const ofertas = rows.map(r => {
-      const base       = parseFloat(r.precio_pub) || 0;
-      const esAlimento = esAlimentoSAT(clean(r.cve_prodserv));
+    const params = [hoy, hoy, ...extraParams];
+
+    // Ejecutar ambas queries en paralelo
+    const [rowsArt, rowsLin] = await Promise.all([
+      fbQuery(sqlArt, params),
+      fbQuery(sqlLin, params),
+    ]);
+
+    const allRows = [...rowsArt, ...rowsLin];
+
+    // ── Agrupar por producto ─────────────────────────────────
+    const porProducto = new Map();
+    for (const r of allRows) {
+      const key = clean(r.cve_art);
+      if (!key) continue;
+      if (!porProducto.has(key)) porProducto.set(key, { info: r, politicas: [] });
+      const existing = porProducto.get(key);
+      // Evitar duplicar la misma política para el mismo producto
+      if (!existing.politicas.find(p => p.cve_polit === r.cve_polit)) {
+        const lim = parseInt(r.limunivta) || 0;
+        const ven = parseInt(r.numuniven) || 0;
+        existing.politicas.push({
+          cve_polit:         r.cve_polit,
+          descr:             clean(r.pol_descr) || '',
+          t_pol:             (r.t_pol  || '').trim(), // 'A' acumulativa | 'S' sustitutiva
+          prc_mon:           (r.prc_mon || '').trim(), // 'P' porcentaje  | 'M' monto fijo
+          val:               parseFloat(r.descuento_val) || 0,
+          fecha_ini:         r.fecha_ini,
+          fecha_fin:         r.fecha_fin,
+          por_cantidad:      lim > 0,
+          unidades_restantes: lim > 0 ? Math.max(0, lim - ven) : null,
+        });
+      }
+    }
+
+    const fmt = (d) => {
+      if (!d) return null;
+      if (d instanceof Date) return d.toISOString().split('T')[0];
+      return String(d).split('T')[0];
+    };
+
+    // ── Construir resultado agrupado por producto ─────────────
+    const ofertas = [];
+    for (const [cveArt, { info, politicas }] of porProducto) {
+      // Precio base según tipo de usuario
+      const cveProd    = clean(info.cve_prodserv);
+      const esAlimento = esAlimentoSAT(cveProd);
+      const base       = parseFloat(info.precio_pub) || 0;
       const conIva     = esAlimento ? base : Math.round(base * 1.08 * 100) / 100;
-      const pct        = parseFloat(r.descuento_pct) || 0;
 
-      let precioOriginal;
+      let precioBase;
       if (cliente) {
         const desc = parseFloat(cliente.descuento) || 0;
-        precioOriginal = Math.round(conIva * (1 - desc / 100) * 100) / 100;
+        precioBase = Math.round(conIva * (1 - desc / 100) * 100) / 100;
       } else {
-        precioOriginal = Math.round(conIva * 1.10 * 100) / 100;
+        precioBase = Math.round(conIva * 1.10 * 100) / 100;
       }
-      const precioOferta = Math.round(precioOriginal * (1 - pct / 100) * 100) / 100;
-      
-      const vStr = r.version_img ? (r.version_img instanceof Date ? r.version_img.getTime() : encodeURIComponent(String(r.version_img).trim())) : '';
 
-      return {
-        id: r.cve_polit,
-        producto_id:     clean(r.cve_art),
-        nombre_producto: clean(r.prod_nombre),
-        titulo:          clean(r.pol_descr) || clean(r.prod_nombre),
-        descripcion:     `${pct}% de descuento sobre precio público.`,
-        unidad:          clean(r.unidad) || 'pieza',
-        precio_original: precioOriginal,
-        precio_oferta:   precioOferta,
-        descuento_pct:   pct,
-        badge:           `${pct}% OFF`,
-        fecha_ini:       fmt(r.fecha_ini),
-        fecha_fin:       fmt(r.fecha_fin),
-        existencia:      r.existencia || 0,
-        imagen_url:      `/img/${clean(r.cve_art)}${vStr ? '?v=' + vStr : ''}`,
-        categoria:       clean(r.categoria) || clean(r.categoria_id),
+      // ── Regla sustitutiva / acumulativa ──────────────────────
+      const sustitutivas = politicas.filter(p => p.t_pol === 'S');
+      const acumulativas  = politicas.filter(p => p.t_pol === 'A');
+
+      let aplicables, tipoAplicacion;
+      if (sustitutivas.length > 0) {
+        // Solo la sustitutiva de mayor valor
+        aplicables      = [sustitutivas.reduce((a, b) => b.val > a.val ? b : a)];
+        tipoAplicacion  = 'sustitutiva';
+      } else {
+        aplicables      = acumulativas;
+        tipoAplicacion  = 'acumulativa';
+      }
+
+      // ── Precio individual por política ────────────────────────
+      const politicasCalculadas = aplicables.map(pol => {
+        const pOferta = pol.prc_mon === 'M'
+          ? Math.max(0, Math.round((precioBase - pol.val) * 100) / 100)
+          : Math.round(precioBase * (1 - pol.val / 100) * 100) / 100;
+        return {
+          cve_polit:         pol.cve_polit,
+          descr:             pol.descr,
+          val:               pol.val,
+          prc_mon:           pol.prc_mon,
+          t_pol:             pol.t_pol,
+          precio_oferta:     pOferta,
+          badge:             pol.prc_mon === 'M' ? `-$${pol.val.toFixed(2)}` : `${pol.val}% OFF`,
+          fecha_ini:         fmt(pol.fecha_ini),
+          fecha_fin:         fmt(pol.fecha_fin),
+          por_cantidad:      pol.por_cantidad,
+          unidades_restantes: pol.unidades_restantes,
+        };
+      });
+
+      // ── Precio final (cascada si acumulativas) ────────────────
+      let precioFinal = precioBase;
+      if (tipoAplicacion === 'sustitutiva') {
+        precioFinal = politicasCalculadas[0]?.precio_oferta ?? precioBase;
+      } else {
+        for (const pol of aplicables) {
+          precioFinal = pol.prc_mon === 'M'
+            ? Math.max(0, Math.round((precioFinal - pol.val) * 100) / 100)
+            : Math.round(precioFinal * (1 - pol.val / 100) * 100) / 100;
+        }
+      }
+
+      const vStr = info.version_img
+        ? (info.version_img instanceof Date
+            ? info.version_img.getTime()
+            : encodeURIComponent(String(info.version_img).trim()))
+        : '';
+
+      ofertas.push({
+        producto_id:     cveArt,
+        nombre_producto: clean(info.prod_nombre),
+        unidad:          clean(info.unidad) || 'pieza',
+        precio_original: precioBase,
+        precio_final:    precioFinal,
+        existencia:      info.existencia || 0,
+        imagen_url:      `/img/${cveArt}${vStr ? '?v=' + vStr : ''}`,
+        categoria:       clean(info.categoria) || clean(info.categoria_id),
         es_alimento:     esAlimento,
-      };
-    });
+        tipo_aplicacion: tipoAplicacion,
+        politicas:       politicasCalculadas,
+      });
+    }
+
+    // Ordenar por mayor ahorro absoluto primero
+    ofertas.sort((a, b) => (b.precio_original - b.precio_final) - (a.precio_original - a.precio_final));
 
     res.json(ofertas);
   } catch (err) {
@@ -380,6 +507,7 @@ app.get('/api/ofertas', optionalAuth, async (req, res) => {
     res.status(500).json({ error: 'Error al obtener ofertas', detalle: err.message });
   }
 });
+
 
 // ══════════════════════════════════════════════════════════
 // PEDIDOS

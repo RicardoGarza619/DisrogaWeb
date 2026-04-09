@@ -22,9 +22,11 @@ const Auth = (() => {
   function logout() {
     localStorage.removeItem(KEY_TOKEN);
     localStorage.removeItem(KEY_CLIENTE);
+    // Vaciar carrito al cerrar sesión (los precios de cliente no aplican a invitados)
+    if (typeof Cart !== 'undefined') Cart.clear();
     renderNavbar();
     // Recargar productos para mostrar precios con margen de invitado
-    if (typeof init === 'function') location.reload();
+    location.reload();
   }
 
   function renderNavbar() {

@@ -148,12 +148,11 @@ function renderProductos(lista) {
     let lblOferta = '';
 
     if (of) {
-      const pOfer = parseFloat(of.precio_oferta) || 0;
-      const pct   = parseFloat(of.descuento_pct) || 0;
-      const calc  = (pOfer > 0 && pOfer < pOrig) ? pOfer : Math.round(pOrig * (1 - pct/100) * 100) / 100;
-      if (calc < pOrig) {
-        pMostrar = calc;
-        lblOferta = `<div style="font-size:0.75rem; color:var(--rojo-cancel); font-weight:bold; margin-bottom: 2px;">-${pct || ((1 - calc/pOrig)*100).toFixed(0)}% OFF (<del style="color:var(--texto-suave);">${formatMXN(pOrig)}</del>)</div>`;
+      const pFinal = parseFloat(of.precio_final) || 0;
+      if (pFinal > 0 && pFinal < pOrig) {
+        pMostrar = pFinal;
+        const pctTotal = Math.round((1 - pFinal / pOrig) * 100);
+        lblOferta = `<div style="font-size:0.75rem; color:var(--rojo-cancel); font-weight:bold; margin-bottom: 2px;">-${pctTotal}% OFF (<del style="color:var(--texto-suave);">${formatMXN(pOrig)}</del>)</div>`;
       }
     }
 
@@ -238,32 +237,44 @@ function renderOfertas(ofertas) {
     grid.innerHTML = `<p style="color:rgba(255,255,255,0.5);padding:20px">Sin ofertas vigentes en este momento.</p>`;
     return;
   }
+
   grid.innerHTML = ofertas.map(o => {
-    // Precio de oferta con fallback por si el servidor no lo calcula
     const pOrig  = parseFloat(o.precio_original) || 0;
-    const pOfer  = parseFloat(o.precio_oferta) || 0;
-    const pct    = parseFloat(o.descuento_pct)  || 0;
-    const precioOferta = (pOfer > 0 && pOfer < pOrig)
-      ? pOfer
-      : Math.round(pOrig * (1 - pct / 100) * 100) / 100;
+    const pFinal = parseFloat(o.precio_final)    || 0;
+    const tieneDescuento = pFinal > 0 && pFinal < pOrig;
+
+    // Un badge individual por cada política, apilados en la esquina superior
+    const badgesHTML = (o.politicas || []).map(pol =>
+      `<span class="oferta-badge${pol.por_cantidad ? ' oferta-badge--cantidad' : ''}">${pol.badge}</span>`
+    ).join('');
+
+    // Nota "hasta agotar" si alguna política es por cantidad
+    const hasCantidad = (o.politicas || []).some(p => p.por_cantidad);
+    const cantidadNote = hasCantidad
+      ? `<div class="oferta-card__cantidad-note">⏳ Hasta agotar existencia</div>`
+      : '';
+
+    const preciosHTML = tieneDescuento ? `
+      <div class="oferta-card__prices">
+        <span class="oferta-card__old-price">${formatMXN(pOrig)}</span>
+        <span class="oferta-card__new-price">${formatMXN(pFinal)}</span>
+      </div>
+      ${o.politicas && o.politicas.length > 1 ? `<div class="oferta-card__acum-note">Precio con ${o.politicas.length} ofertas aplicadas</div>` : ''}` : `
+      <div class="oferta-card__prices">
+        <span class="oferta-card__new-price">${formatMXN(pFinal)}</span>
+      </div>`;
 
     return `
     <div class="oferta-card">
-      <span class="oferta-card__badge">${o.badge || `${pct}% OFF`}</span>
+      <div class="oferta-card__badges">${badgesHTML}</div>
       <div class="oferta-card__img">
         <img src="${o.imagen_url}" alt="${o.nombre_producto}"
           onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\u{1F3F7}\uFE0F',style:'font-size:3rem'}))"
           style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
       </div>
       <div class="oferta-card__product">${o.nombre_producto || ''}</div>
-      <div class="oferta-card__prices">
-        <span class="oferta-card__old-price">${formatMXN(pOrig)}</span>
-        <span class="oferta-card__new-price">${formatMXN(precioOferta)}</span>
-      </div>
-      <div class="oferta-card__desc">${o.descripcion || ''}</div>
-      <div class="oferta-card__vigencia">
-        📅 ${fmtFecha(o.fecha_ini)} → <strong>${fmtFecha(o.fecha_fin)}</strong>
-      </div>
+      ${cantidadNote}
+      ${preciosHTML}
       <div class="add-to-cart-row">
         <div class="card-qty-control">
           <button class="card-qty-btn" data-action="minus">−</button>
@@ -272,7 +283,7 @@ function renderOfertas(ofertas) {
         </div>
         <button class="btn-add-cart"
           data-id="${o.producto_id}"
-          data-precio="${precioOferta}"
+          data-precio="${pFinal}"
           data-img="${o.imagen_url || ''}"
           data-nombre="${(o.nombre_producto || '').replace(/"/g, '&quot;')}"
           data-exist="${o.existencia || 0}"
@@ -283,7 +294,6 @@ function renderOfertas(ofertas) {
       </div>
     </div>`;
   }).join('');
-
 
   // Event delegation para botones de carrito en ofertas
   grid.querySelectorAll('.add-to-cart-row').forEach(row => {
