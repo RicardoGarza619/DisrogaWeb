@@ -359,6 +359,14 @@ ul { list-style: none; }
   background: transparent;
 }
 .search-box input::placeholder { color: #aab; }
+[data-theme="dark"] .search-box {
+  background: #1e2d25;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.35);
+}
+[data-theme="dark"] .search-box input {
+  color: var(--texto-principal);
+}
+[data-theme="dark"] .search-box input::placeholder { color: #5a7a62; }
 .search-box__divider { width: 1px; height: 28px; background: #e5e7ee; }
 .search-box__filter {
   display: flex;
@@ -374,6 +382,7 @@ ul { list-style: none; }
   padding: 60px 5%;
   max-width: 1280px;
   margin: 0 auto;
+  scroll-margin-top: 110px; /* compensa el navbar sticky + search bar */
 }
 .section__header {
   margin-bottom: 36px;
@@ -1029,4 +1038,115 @@ ul { list-style: none; }
   .search-box { flex-wrap: wrap; }
   .search-box__divider, .search-box__filter { display: none; }
   .ofertas-grid { grid-template-columns: 1fr; }
+}
+
+/* ─── Paginación Ofertas ───────────────────── */
+.ofertas-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 32px;
+  flex-wrap: wrap;
+}
+.pag-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s;
+}
+.pag-btn:hover:not(:disabled) {
+  background: var(--verde-lima);
+  color: var(--oscuro);
+  transform: scale(1.08);
+}
+.pag-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.pag-info {
+  color: rgba(255,255,255,0.85);
+  font-size: 0.92rem;
+  font-weight: 600;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* ─── Lightbox Imagen ──────────────────────── */
+.lightbox-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.88);
+  align-items: center;
+  justify-content: center;
+  animation: lbFadeIn 0.2s ease;
+}
+.lightbox-overlay.open {
+  display: flex;
+}
+@keyframes lbFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.lightbox-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.lightbox-content img {
+  width: 480px;
+  height: 480px;
+  object-fit: contain;
+  background: #111;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  animation: lbZoom 0.2s ease;
+}
+@keyframes lbZoom {
+  from { transform: scale(0.9); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.lightbox-nombre {
+  color: rgba(255,255,255,0.9);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  max-width: 80vw;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.lightbox-close {
+  position: fixed;
+  top: 18px;
+  right: 22px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: #fff;
+  font-size: 1.3rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s;
+  z-index: 10000;
+}
+.lightbox-close:hover {
+  background: rgba(255,255,255,0.3);
+  transform: scale(1.1);
 }

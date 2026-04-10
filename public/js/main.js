@@ -161,6 +161,8 @@ function renderProductos(lista) {
       <div class="product-card__img">
         ${p.imagen_url
           ? `<img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+               class="producto-img-click" style="cursor:pointer;"
+               data-src="${p.imagen_url}" data-nombre="${p.nombre.replace(/"/g, '&quot;')}"
                onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\u{1F4E6}',style:'font-size:3.5rem'}))" />`
           : `<span style="font-size:3.5rem">\u{1F4E6}</span>`}
       </div>
@@ -196,6 +198,11 @@ function renderProductos(lista) {
     </article>`;
   }).join('');
 
+  // Click en imagen → lightbox
+  grid.querySelectorAll('.producto-img-click').forEach(img => {
+    img.addEventListener('click', () => abrirLightbox(img.dataset.src, img.dataset.nombre));
+  });
+
   // Event delegation para botones de carrito en productos
   grid.querySelectorAll('.add-to-cart-row').forEach(row => {
     const qtyInput = row.querySelector('.card-qty-input');
@@ -223,15 +230,73 @@ function renderProductos(lista) {
   });
 }
 
-// ─── Ofertas ─────────────────────────────────
-function fmtFecha(iso) {
-  if (!iso) return '';
-  const [y,m,d] = iso.split('-');
-  const meses = ['','ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  return `${parseInt(d)} ${meses[parseInt(m)]} ${y}`;
+// ─── Ofertas – Paginación ────────────────────────────────────
+const OFERTAS_POR_PAG = 20;
+let ofertasPagina = 1;
+let ofertasActuales = []; // lista completa en uso (puede ser filtrada)
+
+function renderOfertasPagina(page) {
+  ofertasPagina = page;
+  const desde = (page - 1) * OFERTAS_POR_PAG;
+  const hasta = desde + OFERTAS_POR_PAG;
+  renderOfertasCards(ofertasActuales.slice(desde, hasta));
+  renderPaginacion();
 }
 
+function renderPaginacion() {
+  const container = document.getElementById('ofertas-pagination');
+  if (!container) return;
+  const total = ofertasActuales.length;
+  const totalPags = Math.ceil(total / OFERTAS_POR_PAG);
+  if (totalPags <= 1) { container.innerHTML = ''; return; }
+
+  const prev  = ofertasPagina > 1;
+  const next  = ofertasPagina < totalPags;
+
+  container.innerHTML = `
+    <button class="pag-btn" data-p="1"       ${!prev ? 'disabled' : ''}>«</button>
+    <button class="pag-btn" data-p="${ofertasPagina - 1}" ${!prev ? 'disabled' : ''}>‹</button>
+    <span class="pag-info">${ofertasPagina} / ${totalPags}</span>
+    <button class="pag-btn" data-p="${ofertasPagina + 1}" ${!next ? 'disabled' : ''}>›</button>
+    <button class="pag-btn" data-p="${totalPags}"  ${!next ? 'disabled' : ''}>»</button>
+  `;
+
+  container.querySelectorAll('.pag-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const p = parseInt(btn.dataset.p);
+      renderOfertasPagina(p);
+      document.getElementById('ofertas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+}
+
+// ─── Lightbox ────────────────────────────────────────────────
+function abrirLightbox(src, nombre) {
+  document.getElementById('lightbox-img').src    = src;
+  document.getElementById('lightbox-nombre').textContent = nombre;
+  document.getElementById('lightbox-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function cerrarLightbox() {
+  document.getElementById('lightbox-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('lightbox-close')?.addEventListener('click', cerrarLightbox);
+  document.getElementById('lightbox-overlay')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) cerrarLightbox();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarLightbox(); });
+});
+
+// ─── Ofertas – Render de cards ───────────────────────────────
 function renderOfertas(ofertas) {
+  ofertasActuales = ofertas || [];
+  ofertasPagina   = 1;
+  renderOfertasPagina(1);
+}
+
+function renderOfertasCards(ofertas) {
   const grid = document.getElementById('ofertas-grid');
   if (!ofertas || !ofertas.length) {
     grid.innerHTML = `<p style="color:rgba(255,255,255,0.5);padding:20px">Sin ofertas vigentes en este momento.</p>`;
@@ -243,16 +308,13 @@ function renderOfertas(ofertas) {
     const pFinal = parseFloat(o.precio_final)    || 0;
     const tieneDescuento = pFinal > 0 && pFinal < pOrig;
 
-    // Un badge individual por cada política, apilados en la esquina superior
     const badgesHTML = (o.politicas || []).map(pol =>
       `<span class="oferta-badge${pol.por_cantidad ? ' oferta-badge--cantidad' : ''}">${pol.badge}</span>`
     ).join('');
 
-    // Nota "hasta agotar" si alguna política es por cantidad
     const hasCantidad = (o.politicas || []).some(p => p.por_cantidad);
     const cantidadNote = hasCantidad
-      ? `<div class="oferta-card__cantidad-note">⏳ Hasta agotar existencia</div>`
-      : '';
+      ? `<div class="oferta-card__cantidad-note">⏳ Hasta agotar existencia</div>` : '';
 
     const preciosHTML = tieneDescuento ? `
       <div class="oferta-card__prices">
@@ -264,14 +326,19 @@ function renderOfertas(ofertas) {
         <span class="oferta-card__new-price">${formatMXN(pFinal)}</span>
       </div>`;
 
+    const imgSrc = o.imagen_url || '';
+    const imgHTML = imgSrc
+      ? `<img src="${imgSrc}" alt="${o.nombre_producto}"
+           onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'🏷️',style:'font-size:3rem'}))"
+           style="width:100%;height:100%;object-fit:contain;border-radius:8px;cursor:pointer;"
+           class="oferta-img-click"
+           data-src="${imgSrc}" data-nombre="${(o.nombre_producto || '').replace(/"/g, '&quot;')}" />`
+      : `<span style="font-size:3rem">🏷️</span>`;
+
     return `
     <div class="oferta-card">
       <div class="oferta-card__badges">${badgesHTML}</div>
-      <div class="oferta-card__img">
-        <img src="${o.imagen_url}" alt="${o.nombre_producto}"
-          onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('span'),{textContent:'\u{1F3F7}\uFE0F',style:'font-size:3rem'}))"
-          style="width:100%;height:100%;object-fit:contain;border-radius:8px;" />
-      </div>
+      <div class="oferta-card__img">${imgHTML}</div>
       <div class="oferta-card__product">${o.nombre_producto || ''}</div>
       ${cantidadNote}
       ${preciosHTML}
@@ -284,7 +351,7 @@ function renderOfertas(ofertas) {
         <button class="btn-add-cart"
           data-id="${o.producto_id}"
           data-precio="${pFinal}"
-          data-img="${o.imagen_url || ''}"
+          data-img="${imgSrc}"
           data-nombre="${(o.nombre_producto || '').replace(/"/g, '&quot;')}"
           data-exist="${o.existencia || 0}"
           aria-label="Agregar al carrito">
@@ -295,11 +362,15 @@ function renderOfertas(ofertas) {
     </div>`;
   }).join('');
 
-  // Event delegation para botones de carrito en ofertas
+  // Clicks en imagen → lightbox
+  grid.querySelectorAll('.oferta-img-click').forEach(img => {
+    img.addEventListener('click', () => abrirLightbox(img.dataset.src, img.dataset.nombre));
+  });
+
+  // Event delegation carrito
   grid.querySelectorAll('.add-to-cart-row').forEach(row => {
     const qtyInput = row.querySelector('.card-qty-input');
     const addBtn   = row.querySelector('.btn-add-cart');
-
     row.querySelectorAll('.card-qty-btn').forEach(qBtn => {
       qBtn.addEventListener('click', () => {
         let v = parseInt(qtyInput.value) || 1;
@@ -307,7 +378,6 @@ function renderOfertas(ofertas) {
         qtyInput.value = v;
       });
     });
-
     addBtn.addEventListener('click', () => {
       Cart.add({
         producto_id:     addBtn.dataset.id,
@@ -322,7 +392,7 @@ function renderOfertas(ofertas) {
   });
 }
 
-// Búsqueda en ofertas desde servidor
+// Búsqueda en ofertas
 const handleOfertasSearch = debounce(async function (e) {
   const termino = e.target.value.trim();
   try {
