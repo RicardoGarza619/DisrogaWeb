@@ -385,6 +385,10 @@
           <div class="form-success" id="forgot-success"></div>
           <form id="forgot-form">
             <div class="form-group">
+              <label>Clave de cliente <span class="form-required">*</span></label>
+              <input id="forgot-clave" type="text" placeholder="Ej. DIST001" required autocomplete="off" />
+            </div>
+            <div class="form-group">
               <label>Correo electrónico <span class="form-required">*</span></label>
               <input id="forgot-email" type="email" placeholder="tu@correo.com" required />
             </div>
@@ -526,6 +530,30 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Toast inactividad ──────────────────────────────── -->
+  <div id="inactivity-toast" style="
+    display:none; position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    background:#1a1a1a; color:#fff; border-radius:12px; padding:16px 24px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4); z-index:99999;
+    font-size:0.95rem; text-align:center; min-width:300px;
+    border:1px solid rgba(255,255,255,0.1); animation: toastIn 0.3s ease;">
+    <div style="margin-bottom:10px;">
+      ⏱️ <strong>¿Sigues ahí?</strong> Tu sesión se cerrará en
+      <span id="inactivity-countdown" style="color:#8DC63F; font-weight:700;">2:00</span> por inactividad.
+    </div>
+    <button onclick="InactivityTimer.reset()" style="
+      background:#8DC63F; border:none; border-radius:8px; padding:7px 20px;
+      font-weight:700; color:#1A5C2A; cursor:pointer; font-size:0.88rem;">
+      Continuar sesión
+    </button>
+  </div>
+  <style>
+    @keyframes toastIn {
+      from { opacity:0; transform:translateX(-50%) translateY(12px); }
+      to   { opacity:1; transform:translateX(-50%) translateY(0); }
+    }
+  </style>
 
   <script src="/js/auth.js"></script>
   <script src="/js/cart.js"></script>

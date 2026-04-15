@@ -114,12 +114,20 @@ app.post('/api/auth/set-password', (req, res) => {
 
 // POST /api/auth/forgot-password
 app.post('/api/auth/forgot-password', async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ error: 'Correo requerido' });
+  const { clave, email } = req.body;
+  if (!clave || !email) return res.status(400).json({ error: 'Clave de cliente y correo son requeridos' });
 
-  const cliente = db.prepare('SELECT * FROM clientes WHERE LOWER(email)=LOWER(TRIM(?)) AND activo=1').get(email);
-  // Siempre responder ok para no revelar si el email existe
-  if (!cliente) return res.json({ ok: true, mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace.' });
+  // Buscar cliente que tenga AMBOS coincidiendo (clave + correo)
+  const cliente = db.prepare(`
+    SELECT * FROM clientes
+    WHERE TRIM(clave) = TRIM(?)
+      AND LOWER(TRIM(email)) = LOWER(TRIM(?))
+      AND activo = 1
+  `).get(clave, email);
+
+  if (!cliente) {
+    return res.status(400).json({ error: 'La clave de cliente y el correo no coinciden con ningún registro.' });
+  }
 
   const token = crypto.randomBytes(32).toString('hex');
   const exp = Date.now() + 60 * 60 * 1000; // 1 hora
@@ -130,7 +138,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   } catch(e) {
     console.error('Error enviando correo reset:', e.message);
   }
-  res.json({ ok: true, mensaje: 'Si existe una cuenta con ese correo, recibirás un enlace.' });
+  res.json({ ok: true, mensaje: '¡Listo! Revisa tu correo para restablecer tu contraseña.' });
 });
 
 // POST /api/auth/reset-password

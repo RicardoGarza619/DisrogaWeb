@@ -4,10 +4,10 @@
  */
 
 const Auth = (() => {
-  const KEY_TOKEN   = 'disroga_token';
+  const KEY_TOKEN = 'disroga_token';
   const KEY_CLIENTE = 'disroga_cliente';
 
-  function getToken()   { return localStorage.getItem(KEY_TOKEN); }
+  function getToken() { return localStorage.getItem(KEY_TOKEN); }
   function getCliente() {
     try { return JSON.parse(localStorage.getItem(KEY_CLIENTE)); }
     catch { return null; }
@@ -30,8 +30,8 @@ const Auth = (() => {
   }
 
   function renderNavbar() {
-    const cliente    = getCliente();
-    const authArea   = document.getElementById('navbar-auth-area');
+    const cliente = getCliente();
+    const authArea = document.getElementById('navbar-auth-area');
     if (!authArea) return;
 
     if (cliente) {
@@ -53,6 +53,68 @@ const Auth = (() => {
   }
 
   return { getToken, getCliente, save, logout, renderNavbar };
+})();
+
+// ─── Inactividad ─────────────────────────────────────────
+const InactivityTimer = (() => {
+  const TIMEOUT_MS = 15 * 60 * 1000; // 30 minutos de inactividad
+  const WARNING_MS = 2 * 60 * 1000; // aviso 2 minutos antes
+  let mainTimer = null;
+  let warnTimer = null;
+  let countdownInt = null;
+
+  function showToast(secsLeft) {
+    const toast = document.getElementById('inactivity-toast');
+    const span = document.getElementById('inactivity-countdown');
+    if (!toast || !span) return;
+    toast.style.display = 'block';
+    let s = secsLeft;
+    span.textContent = fmt(s);
+    clearInterval(countdownInt);
+    countdownInt = setInterval(() => {
+      s--;
+      if (s <= 0) { clearInterval(countdownInt); return; }
+      span.textContent = fmt(s);
+    }, 1000);
+  }
+
+  function hideToast() {
+    const toast = document.getElementById('inactivity-toast');
+    if (toast) toast.style.display = 'none';
+    clearInterval(countdownInt);
+  }
+
+  function fmt(s) {
+    const m = Math.floor(s / 60);
+    const ss = String(s % 60).padStart(2, '0');
+    return `${m}:${ss}`;
+  }
+
+  function reset() {
+    if (!Auth.getCliente()) return; // solo aplica a usuarios con sesión
+    hideToast();
+    clearTimeout(mainTimer);
+    clearTimeout(warnTimer);
+
+    // Programar aviso
+    warnTimer = setTimeout(() => {
+      showToast(WARNING_MS / 1000);
+      // Programar cierre después del aviso
+      mainTimer = setTimeout(() => {
+        hideToast();
+        Auth.logout();
+      }, WARNING_MS);
+    }, TIMEOUT_MS - WARNING_MS);
+  }
+
+  function init() {
+    if (!Auth.getCliente()) return; // no aplica a invitados
+    const eventos = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+    eventos.forEach(ev => document.addEventListener(ev, reset, { passive: true }));
+    reset(); // arranca el timer
+  }
+
+  return { init, reset };
 })();
 
 // ─── Abrir / cerrar modal de auth ───────────────────────
@@ -136,13 +198,13 @@ async function openPedidosModal() {
     const fmtFecha = (s) => {
       if (!s) return '';
       const d = new Date(s.replace(' ', 'T'));
-      return d.toLocaleDateString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
-    const fmtMXN = (n) => parseFloat(n || 0).toLocaleString('es-MX', { style:'currency', currency:'MXN' });
+    const fmtMXN = (n) => parseFloat(n || 0).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
 
     const estadoChip = (e) => {
-      const map = { pendiente: ['#f59e0b','#fffbeb'], completado: ['#22c55e','#f0fdf4'], cancelado: ['#ef4444','#fef2f2'] };
-      const [col, bg] = map[e] || ['#6b7280','#f9fafb'];
+      const map = { pendiente: ['#f59e0b', '#fffbeb'], completado: ['#22c55e', '#f0fdf4'], cancelado: ['#ef4444', '#fef2f2'] };
+      const [col, bg] = map[e] || ['#6b7280', '#f9fafb'];
       return `<span style="background:${bg};color:${col};border:1px solid ${col}33;border-radius:20px;padding:2px 10px;font-size:0.78rem;font-weight:700;">${e.toUpperCase()}</span>`;
     };
 
@@ -166,7 +228,7 @@ async function openPedidosModal() {
         ${p.notas ? `<div class="pedido-card__notas">📌 ${p.notas}</div>` : ''}
       </div>`).join('');
 
-  } catch(err) {
+  } catch (err) {
     content.innerHTML = `<div style="color:var(--rojo-cancel); padding:20px; text-align:center;">${err.message}</div>`;
   }
 }
@@ -178,12 +240,12 @@ function closePedidosModal() {
 // ─── Login ───────────────────────────────────────────────
 async function submitLogin(e) {
   e.preventDefault();
-  const btn   = document.getElementById('login-submit');
+  const btn = document.getElementById('login-submit');
   const errEl = document.getElementById('login-error');
   errEl.classList.remove('visible');
   btn.disabled = true; btn.textContent = 'Verificando…';
 
-  const clave    = document.getElementById('login-clave').value.trim();
+  const clave = document.getElementById('login-clave').value.trim();
   const password = document.getElementById('login-password').value;
 
   try {
@@ -206,7 +268,7 @@ async function submitLogin(e) {
     Cart.clear(); // Vaciar para aplicar precios de cliente
     closeAuthModal();
     location.reload();
-  } catch(err) {
+  } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.add('visible');
   } finally {
@@ -217,15 +279,15 @@ async function submitLogin(e) {
 // ─── Set password (primera vez) ──────────────────────────
 async function submitSetPassword(e) {
   e.preventDefault();
-  const btn   = document.getElementById('sp-submit');
+  const btn = document.getElementById('sp-submit');
   const errEl = document.getElementById('sp-error');
-  const okEl  = document.getElementById('sp-success');
+  const okEl = document.getElementById('sp-success');
   errEl.classList.remove('visible'); okEl.classList.remove('visible');
 
-  const clave    = document.getElementById('sp-clave').value.trim();
-  const email    = document.getElementById('sp-email').value.trim();
+  const clave = document.getElementById('sp-clave').value.trim();
+  const email = document.getElementById('sp-email').value.trim();
   const password = document.getElementById('sp-password').value;
-  const confirm  = document.getElementById('sp-confirm').value;
+  const confirm = document.getElementById('sp-confirm').value;
 
   if (password !== confirm) {
     errEl.textContent = 'Las contraseñas no coinciden';
@@ -246,7 +308,7 @@ async function submitSetPassword(e) {
     okEl.textContent = '¡Contraseña creada! Iniciando sesión…';
     okEl.classList.add('visible');
     setTimeout(() => { closeAuthModal(); location.reload(); }, 1500);
-  } catch(err) {
+  } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.add('visible');
     btn.disabled = false; btn.textContent = 'Crear Contraseña';
@@ -256,27 +318,29 @@ async function submitSetPassword(e) {
 // ─── Recuperar contraseña ────────────────────────────────
 async function submitForgot(e) {
   e.preventDefault();
-  const btn   = document.getElementById('forgot-submit');
+  const btn = document.getElementById('forgot-submit');
   const errEl = document.getElementById('forgot-error');
-  const okEl  = document.getElementById('forgot-success');
+  const okEl = document.getElementById('forgot-success');
   errEl.classList.remove('visible'); okEl.classList.remove('visible');
   btn.disabled = true; btn.textContent = 'Enviando…';
 
+  const clave = document.getElementById('forgot-clave').value.trim();
   const email = document.getElementById('forgot-email').value.trim();
   try {
     const resp = await fetch('/api/auth/forgot-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ clave, email }),
     });
     const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Error al enviar');
     okEl.textContent = data.mensaje || 'Correo enviado si existe la cuenta.';
     okEl.classList.add('visible');
-  } catch(err) {
+  } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.add('visible');
   } finally {
-    btn.disabled = false; btn.textContent = 'Enviar Enlace';
+    btn.disabled = false; btn.textContent = 'Enviar Enlace de Recuperación';
   }
 }
 
@@ -284,14 +348,14 @@ async function submitForgot(e) {
 async function submitResetPassword(e) {
   e.preventDefault();
   const params = new URLSearchParams(location.search);
-  const token  = params.get('token');
+  const token = params.get('token');
   if (!token) return;
 
-  const btn      = document.getElementById('rp-submit');
-  const errEl    = document.getElementById('rp-error');
-  const okEl     = document.getElementById('rp-success');
+  const btn = document.getElementById('rp-submit');
+  const errEl = document.getElementById('rp-error');
+  const okEl = document.getElementById('rp-success');
   const password = document.getElementById('rp-password').value;
-  const confirm  = document.getElementById('rp-confirm').value;
+  const confirm = document.getElementById('rp-confirm').value;
 
   if (password !== confirm) {
     errEl.textContent = 'Las contraseñas no coinciden';
@@ -311,7 +375,7 @@ async function submitResetPassword(e) {
     okEl.textContent = '¡Contraseña actualizada! Redirigiendo…';
     okEl.classList.add('visible');
     setTimeout(() => { location.href = '/'; }, 2000);
-  } catch(err) {
+  } catch (err) {
     errEl.textContent = err.message;
     errEl.classList.add('visible');
     btn.disabled = false; btn.textContent = 'Guardar Contraseña';
@@ -321,6 +385,7 @@ async function submitResetPassword(e) {
 // ─── Init ────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   Auth.renderNavbar();
+  InactivityTimer.init(); // arrancar timer de inactividad
 
   // Cerrar modal al click fuera
   document.getElementById('auth-overlay')?.addEventListener('click', (e) => {
